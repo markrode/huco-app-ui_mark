@@ -16,6 +16,9 @@ import SendRecommendationScreen from '../screens/SendRecommendationScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AccountScreen from '../screens/AccountScreen';
+import HelpScreen from '../screens/HelpScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
+import CreateCircleScreen from '../screens/CreateCircleScreen';
 import { COLORS } from '../components/theme';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -157,6 +160,21 @@ export default function AppNavigator() {
               name="Account"
               component={AccountScreen}
               options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="Help"
+              component={HelpScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="Feedback"
+              component={FeedbackScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="CreateCircle"
+              component={CreateCircleScreen}
+              options={{ animation: 'slide_from_bottom' }}
             />
           </>
         )}

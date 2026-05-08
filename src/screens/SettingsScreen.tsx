@@ -49,16 +49,52 @@ export default function SettingsScreen() {
           <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
         </TouchableOpacity>
         <RowItem icon="mail-outline" iconColor={COLORS.info} label="Email" value={user?.email || '—'} />
-        <RowItem icon="at-outline" iconColor={COLORS.accent} label="Nom d’utilisateur" value={user?.username || '—'} />
+        <RowItem icon="at-outline" iconColor={COLORS.accent} label="Nom d'utilisateur" value={user?.username || '—'} />
 
         <SectionLabel label="Notifications" />
-        <ToggleRow icon="notifications" iconColor={COLORS.success} label="Notifications activées" value={settings.notificationsEnabled} onChange={(v) => updateSettings({ notificationsEnabled: v })} />
-        <ToggleRow icon="paper-plane" iconColor={COLORS.primary} label="Nouvelles recommandations" value={settings.recommendationAlerts} onChange={(v) => updateSettings({ recommendationAlerts: v })} />
-        <ToggleRow icon="calendar" iconColor={COLORS.accent} label="Résumé hebdomadaire" value={settings.weeklyDigest} onChange={(v) => updateSettings({ weeklyDigest: v })} />
+        <ToggleRow
+          icon="notifications"
+          iconColor={COLORS.success}
+          label="Notifications activées"
+          value={settings.notificationsEnabled}
+          onChange={(v) => updateSettings({ notificationsEnabled: v })}
+        />
+        <ToggleRow
+          icon="paper-plane"
+          iconColor={COLORS.primary}
+          label="Nouvelles recommandations"
+          value={settings.recommendationAlerts}
+          onChange={(v) => updateSettings({ recommendationAlerts: v })}
+        />
+        <ToggleRow
+          icon="calendar"
+          iconColor={COLORS.accent}
+          label="Résumé hebdomadaire"
+          value={settings.weeklyDigest}
+          onChange={(v) => updateSettings({ weeklyDigest: v })}
+        />
+
+        <SectionLabel label="Aide & Support" />
+        <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('Help')} activeOpacity={0.7}>
+          <RowIcon name="help-circle" color={COLORS.info} />
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Centre d'aide</Text>
+            <Text style={styles.rowValue}>FAQ et guides</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('Feedback')} activeOpacity={0.7}>
+          <RowIcon name="bug" color={COLORS.primary} />
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Signaler un bug</Text>
+            <Text style={styles.rowValue}>ou suggérer une amélioration</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+        </TouchableOpacity>
 
         <SectionLabel label="Application" />
         <RowItem icon="shield-checkmark-outline" iconColor="#8E44AD" label="Confidentialité" tappable />
-        <RowItem icon="document-text-outline" iconColor={COLORS.info} label="Conditions d’utilisation" tappable />
+        <RowItem icon="document-text-outline" iconColor={COLORS.info} label="Conditions d'utilisation" tappable />
         <RowItem icon="information-circle-outline" iconColor={COLORS.textMuted} label="Version" value="1.0.0" />
 
         <SectionLabel label="" />
@@ -66,6 +102,7 @@ export default function SettingsScreen() {
           <RowIcon name="log-out" color={COLORS.primary} />
           <Text style={[styles.rowLabel, { color: COLORS.primary }]}>Se déconnecter</Text>
         </TouchableOpacity>
+
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
     </View>
@@ -84,7 +121,21 @@ function RowIcon({ name, color }: { name: keyof typeof Ionicons.glyphMap; color:
   );
 }
 
-function RowItem({ icon, iconColor, label, value, tappable, onPress }: { icon: keyof typeof Ionicons.glyphMap; iconColor: string; label: string; value?: string; tappable?: boolean; onPress?: () => void; }) {
+function RowItem({
+  icon,
+  iconColor,
+  label,
+  value,
+  tappable,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  label: string;
+  value?: string;
+  tappable?: boolean;
+  onPress?: () => void;
+}) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} disabled={!tappable && !onPress} activeOpacity={0.7}>
       <RowIcon name={icon} color={iconColor} />
@@ -97,25 +148,85 @@ function RowItem({ icon, iconColor, label, value, tappable, onPress }: { icon: k
   );
 }
 
-function ToggleRow({ icon, iconColor, label, value, onChange }: { icon: keyof typeof Ionicons.glyphMap; iconColor: string; label: string; value: boolean; onChange: (v: boolean) => void; }) {
+function ToggleRow({
+  icon,
+  iconColor,
+  label,
+  value,
+  onChange,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <View style={styles.row}>
       <RowIcon name={icon} color={iconColor} />
-      <View style={styles.rowContent}><Text style={styles.rowLabel}>{label}</Text></View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ false: COLORS.border, true: COLORS.primary }} thumbColor={COLORS.text} ios_backgroundColor={COLORS.border} />
+      <View style={styles.rowContent}>
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: COLORS.border, true: COLORS.primary }}
+        thumbColor={COLORS.text}
+        ios_backgroundColor={COLORS.border}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 52, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  backBtn: { width: 38, height: 38, borderRadius: RADIUS.full, backgroundColor: COLORS.surface, justifyContent: 'center', alignItems: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 52,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
-  sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, paddingHorizontal: SPACING.md, paddingTop: SPACING.lg, paddingBottom: SPACING.sm },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: 13, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: SPACING.md },
+  sectionLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 13,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: SPACING.md,
+  },
   logoutRow: { marginTop: SPACING.sm },
-  rowIconWrap: { width: 34, height: 34, borderRadius: RADIUS.sm, justifyContent: 'center', alignItems: 'center' },
+  rowIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   rowContent: { flex: 1 },
   rowLabel: { color: COLORS.text, fontSize: 15 },
   rowValue: { color: COLORS.textMuted, fontSize: 13, marginTop: 1 },

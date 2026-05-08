@@ -93,7 +93,7 @@ export default function ProfileScreen() {
         <View style={styles.statDivider} />
         <StatPill label="Watchlist" value={state.watchlist.length} />
         <View style={styles.statDivider} />
-        <StatPill label="Reçues" value={state.inbox.length} />
+        <StatPill label="Reçues" value={state.inbox.filter(r => r.status === 'pending').length} />
         <View style={styles.statDivider} />
         <StatPill label="Note moy." value={avgRating} />
       </View>
@@ -149,6 +149,14 @@ export default function ProfileScreen() {
       {/* Circles tab */}
       {tab === 'circles' && (
         <ScrollView showsVerticalScrollIndicator={false}>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => navigation.navigate('CreateCircle')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.addBtnText}>Créer un cercle</Text>
+          </TouchableOpacity>
           {state.circles.map((circle) => (
             <View key={circle.id} style={styles.circleCard}>
               <View style={styles.circleHeader}>
@@ -182,7 +190,7 @@ export default function ProfileScreen() {
           <StatCard icon="mail" label="Reco reçues" value={state.inbox.length} color={COLORS.primary} />
           <StatCard icon="star" label="Note moyenne" value={avgRating} color={COLORS.accent} />
           <StatCard icon="people" label="Contacts" value={state.contacts.length} color={COLORS.info} />
-          <StatCard icon="paper-plane" label="Reco envoyées" value={0} color={COLORS.success} />
+          <StatCard icon="paper-plane" label="Reco envoyées" value={(state.sentRecs || []).length} color={COLORS.success} />
         </ScrollView>
       )}
 
