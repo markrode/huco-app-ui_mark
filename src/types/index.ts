@@ -68,3 +68,22 @@ export interface ReceivedRecommendation {
   receivedAt: string;
   status: 'pending' | 'watchlisted' | 'seen' | 'ignored';
 }
+
+export interface AppUser {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatar: string;
+}
+
+export interface AppSettings {
+  notificationsEnabled: boolean;
+  recommendationAlerts: boolean;
+  weeklyDigest: boolean;
+}
+
+export interface Genre {
+  id: number;
+  name: string;
+}
