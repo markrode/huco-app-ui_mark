@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import { useToast } from '../components/Toast';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
@@ -12,20 +21,34 @@ import { WatchlistEntry, UserRating } from '../types';
 export default function WatchlistScreen() {
   const navigation = useNavigation<any>();
   const { state, dispatch } = useApp();
+  const { showToast } = useToast();
   const [markingEntry, setMarkingEntry] = useState<WatchlistEntry | null>(null);
+
+  function handleMarkWatched(entry: WatchlistEntry) {
+    setMarkingEntry(entry);
+  }
 
   function confirmMarkWatched(rating: UserRating) {
     if (!markingEntry) return;
+    const title = markingEntry.movie.title;
     dispatch({ type: 'MARK_WATCHED', movieId: markingEntry.movie.id, rating });
     setMarkingEntry(null);
-    Alert.alert('Bravo !', `"${markingEntry.movie.title}" a été ajouté à votre bibliothèque.`);
+    showToast(`"${title}" ajouté à votre bibliothèque.`, 'success');
   }
 
   function handleRemove(entry: WatchlistEntry) {
-    Alert.alert('Retirer', `Retirer "${entry.movie.title}" de votre Watchlist ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Retirer', style: 'destructive', onPress: () => dispatch({ type: 'REMOVE_FROM_WATCHLIST', movieId: entry.movie.id }) },
-    ]);
+    Alert.alert(
+      'Retirer',
+      `Retirer "${entry.movie.title}" de votre Watchlist ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Retirer',
+          style: 'destructive',
+          onPress: () => dispatch({ type: 'REMOVE_FROM_WATCHLIST', movieId: entry.movie.id }),
+        },
+      ]
+    );
   }
 
   return (
@@ -34,15 +57,30 @@ export default function WatchlistScreen() {
         <Text style={styles.headerTitle}>Watchlist</Text>
         <Text style={styles.count}>{state.watchlist.length} film{state.watchlist.length !== 1 ? 's' : ''}</Text>
       </View>
+
       <FlatList
         data={state.watchlist}
         keyExtractor={(item) => String(item.movie.id)}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('FilmDetails', { movie: item.movie })} activeOpacity={0.8}>
-            {item.movie.poster ? <Image source={{ uri: item.movie.poster }} style={styles.poster} /> : <View style={[styles.poster, styles.posterPlaceholder]}><Text style={{ fontSize: 28 }}>🎬</Text></View>}
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => navigation.navigate('FilmDetails', { movie: item.movie })}
+            activeOpacity={0.8}
+          >
+            {item.movie.poster ? (
+              <Image source={{ uri: item.movie.poster }} style={styles.poster} />
+            ) : (
+              <View style={[styles.poster, styles.posterPlaceholder]}>
+                <Text style={{ fontSize: 28 }}>🎬</Text>
+              </View>
+            )}
             <View style={styles.info}>
-              <Text style={styles.title} numberOfLines={2}>{item.movie.title}</Text>
+              <Text style={styles.title} numberOfLines={2}>
+                {item.movie.title}
+              </Text>
               <Text style={styles.year}>{item.movie.releaseDate.split('-')[0]}</Text>
+
+              {/* Recommendations for this film */}
               {item.recommendations.length > 0 && (
                 <View style={styles.recsSection}>
                   {item.recommendations.map((rec) => (
@@ -51,20 +89,33 @@ export default function WatchlistScreen() {
                       <View style={styles.recInfo}>
                         <Text style={styles.recName}>{rec.sender.name.split(' ')[0]}</Text>
                         <StarRating value={rec.senderRating.stars} readonly size={12} />
-                        {rec.senderRating.comment ? <Text style={styles.recComment} numberOfLines={2}>"{rec.senderRating.comment}"</Text> : null}
+                        {rec.senderRating.comment ? (
+                          <Text style={styles.recComment} numberOfLines={2}>
+                            "{rec.senderRating.comment}"
+                          </Text>
+                        ) : null}
                       </View>
                     </View>
                   ))}
                 </View>
               )}
-              <Text style={styles.date}>Ajouté le {new Date(item.addedAt).toLocaleDateString('fr-FR')}</Text>
+
+              <Text style={styles.date}>
+                Ajouté le {new Date(item.addedAt).toLocaleDateString('fr-FR')}
+              </Text>
             </View>
+
             <View style={styles.itemActions}>
-              <TouchableOpacity style={styles.watchedBtn} onPress={() => setMarkingEntry(item)}>
+              <TouchableOpacity
+                style={styles.watchedBtn}
+                onPress={() => handleMarkWatched(item)}
+              >
                 <Ionicons name="eye-outline" size={18} color={COLORS.success} />
                 <Text style={styles.watchedText}>Vu</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleRemove(item)}><Ionicons name="close-circle-outline" size={22} color={COLORS.textMuted} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => handleRemove(item)}>
+                <Ionicons name="close-circle-outline" size={22} color={COLORS.textMuted} />
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         )}
@@ -72,25 +123,55 @@ export default function WatchlistScreen() {
           <View style={styles.empty}>
             <Ionicons name="bookmark-outline" size={56} color={COLORS.textMuted} />
             <Text style={styles.emptyTitle}>Watchlist vide</Text>
-            <Text style={styles.emptyText}>Ajoutez des films à regarder plus tard depuis la recherche ou vos recommandations reçues.</Text>
-            <TouchableOpacity style={styles.searchBtn} onPress={() => navigation.navigate('Search')}><Text style={styles.searchBtnText}>Explorer des films</Text></TouchableOpacity>
+            <Text style={styles.emptyText}>
+              Ajoutez des films à regarder plus tard depuis la recherche, les détails ou vos recommandations reçues.
+            </Text>
+            <TouchableOpacity style={styles.searchBtn} onPress={() => navigation.navigate('Search')}>
+              <Text style={styles.searchBtnText}>Explorer des films</Text>
+            </TouchableOpacity>
           </View>
         }
         contentContainerStyle={state.watchlist.length === 0 ? styles.emptyContainer : { paddingBottom: SPACING.xl }}
         showsVerticalScrollIndicator={false}
       />
-      <RatingModal visible={!!markingEntry} title={`Comment avez-vous trouvé "${markingEntry?.movie.title}" ?`} onConfirm={confirmMarkWatched} onCancel={() => setMarkingEntry(null)} />
+
+      <RatingModal
+        visible={!!markingEntry}
+        title={`Comment avez-vous trouvé "${markingEntry?.movie.title}" ?`}
+        onConfirm={confirmMarkWatched}
+        onCancel={() => setMarkingEntry(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 52, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingTop: 52,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+  },
   headerTitle: { color: COLORS.text, fontSize: 28, fontWeight: '800' },
   count: { color: COLORS.textMuted, fontSize: 14 },
-  item: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: SPACING.md },
-  poster: { width: 70, height: 105, borderRadius: RADIUS.sm, backgroundColor: COLORS.surface },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: SPACING.md,
+  },
+  poster: {
+    width: 70,
+    height: 105,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.surface,
+  },
   posterPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   info: { flex: 1, gap: 4 },
   title: { color: COLORS.text, fontSize: 15, fontWeight: '600', lineHeight: 20 },
@@ -108,6 +189,11 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.md },
   emptyTitle: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
   emptyText: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  searchBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md },
+  searchBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+  },
   searchBtnText: { color: COLORS.text, fontWeight: '700' },
 });

@@ -138,8 +138,12 @@ export default function HomeScreen() {
               <View style={styles.heroMeta}>
                 <Ionicons name="star" size={13} color={COLORS.accent} />
                 <Text style={styles.heroRating}>{featuredMovie.rating.toFixed(1)}</Text>
-                <Text style={styles.heroDot}>·</Text>
-                <Text style={styles.heroYear}>{featuredMovie.releaseDate.split('-')[0]}</Text>
+                {featuredMovie.releaseDate ? (
+                  <>
+                    <Text style={styles.heroDot}>·</Text>
+                    <Text style={styles.heroYear}>{featuredMovie.releaseDate.split('-')[0]}</Text>
+                  </>
+                ) : null}
                 {featuredMovie.runtime > 0 && (
                   <>
                     <Text style={styles.heroDot}>·</Text>

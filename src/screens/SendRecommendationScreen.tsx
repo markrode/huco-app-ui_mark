@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,7 @@ import StarRating from '../components/StarRating';
 import Avatar from '../components/Avatar';
 import RatingModal from '../components/RatingModal';
 import { COLORS, SPACING, RADIUS } from '../components/theme';
+import { useToast } from '../components/Toast';
 import { Movie, Contact, Circle, UserRating } from '../types';
 
 type Recipient = { type: 'contact'; data: Contact } | { type: 'circle'; data: Circle };
@@ -24,14 +24,17 @@ export default function SendRecommendationScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { state, dispatch } = useApp();
-  const movie: Movie = route.params.movie;
+  const { showToast } = useToast();
+  const movie: Movie | undefined = route.params?.movie;
 
-  const libraryEntry = state.library.find((e) => e.movie.id === movie.id);
+  const libraryEntry = movie ? state.library.find((e) => e.movie.id === movie.id) : undefined;
 
   const [step, setStep] = useState<'rate' | 'recipients' | 'recap'>('rate');
   const [rating, setRating] = useState<UserRating | null>(libraryEntry?.userRating ?? null);
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([]);
   const [ratingModal, setRatingModal] = useState(!libraryEntry);
+
+  if (!movie) return null;
 
   function toggleRecipient(recipient: Recipient) {
     const id = recipient.type === 'contact' ? recipient.data.id : recipient.data.id;
@@ -57,7 +60,7 @@ export default function SendRecommendationScreen() {
   }
 
   function handleSend() {
-    if (!rating) return;
+    if (!movie || !rating) return;
     if (!libraryEntry) {
       dispatch({ type: 'ADD_TO_LIBRARY', movie, rating });
     }
@@ -71,11 +74,11 @@ export default function SendRecommendationScreen() {
         sentAt: new Date().toISOString(),
       },
     });
-    Alert.alert(
-      'Recommandation envoyée !',
-      `"${movie.title}" a été envoyé à ${selectedRecipients.length} destinataire${selectedRecipients.length > 1 ? 's' : ''}.`,
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
+    showToast(
+      `"${movie.title}" envoyé à ${selectedRecipients.length} destinataire${selectedRecipients.length > 1 ? 's' : ''}.`,
+      'success'
     );
+    navigation.goBack();
   }
 
   if (step === 'rate') {
@@ -96,7 +99,7 @@ export default function SendRecommendationScreen() {
             )}
             <View style={styles.previewInfo}>
               <Text style={styles.previewTitle}>{movie.title}</Text>
-              <Text style={styles.previewYear}>{movie.releaseDate.split('-')[0]}</Text>
+              {movie.releaseDate ? <Text style={styles.previewYear}>{movie.releaseDate.split('-')[0]}</Text> : null}
             </View>
           </View>
 

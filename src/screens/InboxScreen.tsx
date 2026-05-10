@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ScrollView,
 } from 'react-native';
+import { useToast } from '../components/Toast';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
@@ -22,6 +24,7 @@ type Tab = 'recues' | 'envoyees';
 export default function InboxScreen() {
   const navigation = useNavigation<any>();
   const { state, dispatch } = useApp();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('recues');
   const [addingToLibrary, setAddingToLibrary] = useState<ReceivedRecommendation | null>(null);
 
@@ -42,17 +45,18 @@ export default function InboxScreen() {
       return;
     }
     dispatch({ type: 'HANDLE_RECOMMENDATION', recId: rec.id, action });
-    Alert.alert(
-      action === 'watchlist' ? 'Ajouté à la Watchlist' : 'Ajouté à la bibliothèque',
-      `"${rec.movie.title}" a été ajouté.`
+    showToast(
+      `"${rec.movie.title}" ${action === 'watchlist' ? 'ajouté à la Watchlist' : 'ajouté à la bibliothèque'}.`,
+      'success'
     );
   }
 
   function confirmAddToLibrary(rating: UserRating) {
     if (!addingToLibrary) return;
+    const title = addingToLibrary.movie.title;
     dispatch({ type: 'HANDLE_RECOMMENDATION', recId: addingToLibrary.id, action: 'library', rating });
     setAddingToLibrary(null);
-    Alert.alert('Ajouté !', `"${addingToLibrary.movie.title}" a été ajouté à votre bibliothèque.`);
+    showToast(`"${title}" ajouté à votre bibliothèque.`, 'success');
   }
 
   return (
@@ -71,7 +75,9 @@ export default function InboxScreen() {
           style={[styles.tab, activeTab === 'recues' && styles.tabActive]}
           onPress={() => setActiveTab('recues')}
         >
-          <Text style={[styles.tabText, activeTab === 'recues' && styles.tabTextActive]}>Reçues</Text>
+          <Text style={[styles.tabText, activeTab === 'recues' && styles.tabTextActive]}>
+            Reçues
+          </Text>
           {pending.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{pending.length}</Text>
@@ -82,7 +88,9 @@ export default function InboxScreen() {
           style={[styles.tab, activeTab === 'envoyees' && styles.tabActive]}
           onPress={() => setActiveTab('envoyees')}
         >
-          <Text style={[styles.tabText, activeTab === 'envoyees' && styles.tabTextActive]}>Envoyées</Text>
+          <Text style={[styles.tabText, activeTab === 'envoyees' && styles.tabTextActive]}>
+            Envoyées
+          </Text>
           {sentRecs.length > 0 && (
             <View style={[styles.tabBadge, { backgroundColor: COLORS.success }]}>
               <Text style={styles.tabBadgeText}>{sentRecs.length}</Text>
@@ -107,7 +115,9 @@ export default function InboxScreen() {
             <View style={styles.empty}>
               <Ionicons name="mail-outline" size={56} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Aucune recommandation</Text>
-              <Text style={styles.emptyText}>Vos contacts peuvent vous recommander des films depuis l'application.</Text>
+              <Text style={styles.emptyText}>
+                Vos contacts peuvent vous recommander des films depuis l'application.
+              </Text>
             </View>
           }
           contentContainerStyle={state.inbox.length === 0 ? styles.emptyContainer : { paddingBottom: SPACING.xl }}
@@ -135,7 +145,9 @@ export default function InboxScreen() {
             <View style={styles.empty}>
               <Ionicons name="paper-plane-outline" size={56} color={COLORS.textMuted} />
               <Text style={styles.emptyTitle}>Aucune recommandation envoyée</Text>
-              <Text style={styles.emptyText}>Recommandez des films à vos contacts depuis la page détail d'un film.</Text>
+              <Text style={styles.emptyText}>
+                Recommandez des films à vos contacts depuis la page détail d'un film.
+              </Text>
             </View>
           }
           contentContainerStyle={sentRecs.length === 0 ? styles.emptyContainer : { paddingBottom: SPACING.xl }}
@@ -163,6 +175,7 @@ function RecCard({
   onAction: (action: 'watchlist' | 'library' | 'ignore') => void;
 }) {
   const handled = rec.status !== 'pending';
+
   const statusLabel: Record<string, string> = {
     watchlisted: 'Ajouté à la Watchlist',
     seen: 'Ajouté à la bibliothèque',
@@ -194,6 +207,7 @@ function RecCard({
           ) : null}
         </View>
       </TouchableOpacity>
+
       {handled ? (
         <View style={styles.handledBadge}>
           <Ionicons
@@ -225,8 +239,17 @@ function RecCard({
   );
 }
 
-function SentCard({ rec, onPress }: { rec: SentRecommendation; onPress: () => void }) {
-  const recipientNames = rec.recipients.slice(0, 3).map((r: any) => r.name).join(', ');
+function SentCard({
+  rec,
+  onPress,
+}: {
+  rec: SentRecommendation;
+  onPress: () => void;
+}) {
+  const recipientNames = rec.recipients
+    .slice(0, 3)
+    .map((r) => r.name)
+    .join(', ');
   const extra = rec.recipients.length > 3 ? ` +${rec.recipients.length - 3}` : '';
 
   return (
@@ -242,7 +265,9 @@ function SentCard({ rec, onPress }: { rec: SentRecommendation; onPress: () => vo
         <View style={styles.cardInfo}>
           <View style={styles.sentBadge}>
             <Ionicons name="paper-plane" size={11} color={COLORS.success} />
-            <Text style={styles.sentBadgeText}>{new Date(rec.sentAt).toLocaleDateString('fr-FR')}</Text>
+            <Text style={styles.sentBadgeText}>
+              {new Date(rec.sentAt).toLocaleDateString('fr-FR')}
+            </Text>
           </View>
           <Text style={styles.movieTitle} numberOfLines={2}>{rec.movie.title}</Text>
           <StarRating value={rec.userRating.stars} readonly size={16} />
@@ -251,7 +276,9 @@ function SentCard({ rec, onPress }: { rec: SentRecommendation; onPress: () => vo
           ) : null}
           <View style={styles.recipientsRow}>
             <Ionicons name="people-outline" size={13} color={COLORS.textMuted} />
-            <Text style={styles.recipientsText} numberOfLines={1}>{recipientNames}{extra}</Text>
+            <Text style={styles.recipientsText} numberOfLines={1}>
+              {recipientNames}{extra}
+            </Text>
           </View>
         </View>
       </View>
@@ -262,20 +289,63 @@ function SentCard({ rec, onPress }: { rec: SentRecommendation; onPress: () => vo
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 52, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 52,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
   },
-  backBtn: { backgroundColor: COLORS.surface, borderRadius: RADIUS.full, padding: SPACING.sm },
+  backBtn: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.full,
+    padding: SPACING.sm,
+  },
   headerTitle: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: SPACING.md, gap: 6 },
+  tabs: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    gap: 6,
+  },
   tabActive: { borderBottomWidth: 2, borderBottomColor: COLORS.primary },
   tabText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
   tabTextActive: { color: COLORS.text },
-  tabBadge: { backgroundColor: COLORS.primary, borderRadius: RADIUS.full, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  tabBadge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
   tabBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  sectionLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
-  card: { backgroundColor: COLORS.card, marginHorizontal: SPACING.md, marginBottom: SPACING.md, borderRadius: RADIUS.lg, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
+  sectionLabel: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  card: {
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   cardDimmed: { opacity: 0.6 },
   cardTop: { flexDirection: 'row', padding: SPACING.md, gap: SPACING.md },
   poster: { width: 80, height: 120, borderRadius: RADIUS.sm, backgroundColor: COLORS.surface },
@@ -291,15 +361,37 @@ const styles = StyleSheet.create({
   recipientsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   recipientsText: { color: COLORS.textMuted, fontSize: 12, flex: 1 },
   actions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: SPACING.md, gap: 4 },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    gap: 4,
+  },
   watchlistBtn: { borderRightWidth: 1, borderRightColor: COLORS.border },
   libraryBtn: { borderRightWidth: 1, borderRightColor: COLORS.border },
   ignoreBtn: {},
   actionText: { fontSize: 13, fontWeight: '600' },
-  handledBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.border },
+  handledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
   handledText: { color: COLORS.success, fontSize: 13, fontWeight: '600' },
   emptyContainer: { flex: 1 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl, gap: SPACING.md, marginTop: 60 },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xl,
+    gap: SPACING.md,
+    marginTop: 60,
+  },
   emptyTitle: { color: COLORS.text, fontSize: 20, fontWeight: '700' },
   emptyText: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });

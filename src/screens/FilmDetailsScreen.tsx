@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Dimensions,
   Linking,
-  Alert,
   Share,
   StatusBar,
 } from 'react-native';
@@ -20,6 +19,7 @@ import StarRating from '../components/StarRating';
 import Avatar from '../components/Avatar';
 import RatingModal from '../components/RatingModal';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../components/theme';
+import { useToast } from '../components/Toast';
 import { Movie, UserRating } from '../types';
 import { getMovieDetails } from '../services/tmdbService';
 
@@ -37,14 +37,21 @@ export default function FilmDetailsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { state, dispatch } = useApp();
-  const [movie, setMovie] = useState<Movie>(route.params.movie);
+  const { showToast } = useToast();
+  const [movie, setMovie] = useState<Movie | null>(route.params?.movie ?? null);
   const [ratingModal, setRatingModal] = useState(false);
 
   useEffect(() => {
-    getMovieDetails(movie.id).then((details) => {
-      if (details) setMovie(details);
+    const id = movie?.id;
+    if (!id) return;
+    let active = true;
+    getMovieDetails(id).then((details) => {
+      if (active && details) setMovie(details);
     });
-  }, [movie.id]);
+    return () => { active = false; };
+  }, [movie?.id]);
+
+  if (!movie) return null;
 
   const inLibrary = state.library.some((e) => e.movie.id === movie.id);
   const inWatchlist = state.watchlist.some((e) => e.movie.id === movie.id);
@@ -52,17 +59,19 @@ export default function FilmDetailsScreen() {
   const contactRatings = state.inbox.filter((r) => r.movie.id === movie.id);
 
   function addToLibrary(rating: UserRating) {
+    if (!movie) return;
     dispatch({ type: 'ADD_TO_LIBRARY', movie, rating });
     setRatingModal(false);
   }
 
   function toggleWatchlist() {
-    if (inWatchlist) return;
+    if (!movie || inWatchlist) return;
     dispatch({ type: 'ADD_TO_WATCHLIST', movie });
-    Alert.alert('Ajouté !', `"${movie.title}" est dans votre Watchlist.`);
+    showToast(`"${movie.title}" ajouté à la Watchlist.`, 'success');
   }
 
   async function handleShare() {
+    if (!movie) return;
     try {
       await Share.share({
         message: `Je recommande "${movie.title}" sur HuCo ! Note TMDB : ${movie.rating.toFixed(1)}/10`,
@@ -72,7 +81,7 @@ export default function FilmDetailsScreen() {
   }
 
   function openTrailer() {
-    if (movie.trailerUrl) {
+    if (movie?.trailerUrl?.startsWith('https://')) {
       Linking.openURL(movie.trailerUrl);
     }
   }
@@ -225,7 +234,7 @@ export default function FilmDetailsScreen() {
                 <TouchableOpacity
                   key={s.id}
                   style={styles.streamingBtn}
-                  onPress={() => Linking.openURL(s.url)}
+                  onPress={() => s.url.startsWith('https://') && Linking.openURL(s.url)}
                   activeOpacity={0.75}
                 >
                   <Text style={styles.streamingName}>{s.name}</Text>
