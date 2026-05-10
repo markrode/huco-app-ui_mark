@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Movie,
@@ -17,6 +17,7 @@ import {
   MOCK_CONTACTS,
   MOCK_CIRCLES,
 } from '../data/mockData';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AppState {
   library: LibraryEntry[];
@@ -124,7 +125,9 @@ function reducer(state: AppState, action: Action): AppState {
       let newState = {
         ...state,
         inbox: state.inbox.map((r) =>
-          r.id === action.recId ? { ...r, status: action.action === 'ignore' ? 'ignored' : action.action === 'watchlist' ? 'watchlisted' : 'seen' } : r
+          r.id === action.recId
+            ? { ...r, status: action.action === 'ignore' ? 'ignored' : action.action === 'watchlist' ? 'watchlisted' : 'seen' }
+            : r
         ) as ReceivedRecommendation[],
       };
       if (action.action === 'watchlist') {
@@ -191,19 +194,69 @@ const AppContext = createContext<AppContextValue>({ state: initialState, dispatc
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedRef = useRef(false);
 
+  // Hydrate: try Supabase first, fall back to AsyncStorage
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) {
-        try {
-          dispatch({ type: 'HYDRATE', state: JSON.parse(raw) });
-        } catch {}
+    async function hydrate() {
+      if (isSupabaseConfigured && supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data } = await supabase
+            .from('user_data')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          if (data) {
+            dispatch({
+              type: 'HYDRATE',
+              state: {
+                library: data.library ?? [],
+                watchlist: data.watchlist ?? [],
+                inbox: data.inbox ?? INITIAL_RECOMMENDATIONS,
+                sentRecs: data.sent_recs ?? [],
+                contacts: data.contacts ?? MOCK_CONTACTS,
+                circles: data.circles ?? MOCK_CIRCLES,
+              },
+            });
+            hydratedRef.current = true;
+            return;
+          }
+        }
       }
-    });
+      // AsyncStorage fallback
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try { dispatch({ type: 'HYDRATE', state: JSON.parse(raw) }); } catch {}
+      }
+      hydratedRef.current = true;
+    }
+    hydrate();
   }, []);
 
+  // Persist on every state change (debounced Supabase sync, immediate AsyncStorage)
   useEffect(() => {
+    if (!hydratedRef.current) return;
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+    if (isSupabaseConfigured && supabase) {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(async () => {
+        const { data: { session } } = await supabase!.auth.getSession();
+        if (!session) return;
+        await supabase!.from('user_data').upsert({
+          user_id: session.user.id,
+          library: state.library,
+          watchlist: state.watchlist,
+          inbox: state.inbox,
+          sent_recs: state.sentRecs,
+          contacts: state.contacts,
+          circles: state.circles,
+          updated_at: new Date().toISOString(),
+        });
+      }, 2000);
+    }
   }, [state]);
 
   return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;

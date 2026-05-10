@@ -89,7 +89,6 @@ export default function SearchScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Header + search bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Rechercher</Text>
         <View style={styles.searchBar}>
@@ -111,7 +110,6 @@ export default function SearchScreen() {
           )}
         </View>
 
-        {/* Genre chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -142,7 +140,6 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Idle state: trending */}
       {showIdle && !loading && (
         <View style={styles.idleSection}>
           {trending.length > 0 ? (
@@ -176,7 +173,6 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Results */}
       {!showIdle && !loading && (
         <FlatList
           data={displayList}
@@ -198,13 +194,16 @@ export default function SearchScreen() {
 }
 
 function MovieRow({ movie, onPress }: { movie: Movie; onPress: () => void }) {
+  const year = movie.releaseDate ? movie.releaseDate.split('-')[0] : null;
+  const genres = movie.genres.slice(0, 2);
+
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       {movie.poster ? (
         <Image source={{ uri: movie.poster }} style={styles.rowPoster} />
       ) : (
         <View style={[styles.rowPoster, styles.rowPosterPlaceholder]}>
-          <Text style={{ fontSize: 24 }}>🎬</Text>
+          <Text style={{ fontSize: 28 }}>🎦</Text>
         </View>
       )}
       <View style={styles.rowInfo}>
@@ -212,30 +211,37 @@ function MovieRow({ movie, onPress }: { movie: Movie; onPress: () => void }) {
         {movie.originalTitle !== movie.title && (
           <Text style={styles.rowOriginal} numberOfLines={1}>{movie.originalTitle}</Text>
         )}
+
         <View style={styles.rowMeta}>
-          {movie.releaseDate ? (
-            <Text style={styles.rowYear}>{movie.releaseDate.split('-')[0]}</Text>
-          ) : null}
-          {movie.genres.length > 0 && (
-            <Text style={styles.rowGenre}>{movie.genres.slice(0, 2).join(' · ')}</Text>
-          )}
-          {movie.runtime > 0 && <Text style={styles.rowRuntime}>{movie.runtime} min</Text>}
+          {year ? <Text style={styles.rowYear}>{year}</Text> : null}
+          {year && movie.runtime > 0 ? <Text style={styles.metaDot}>·</Text> : null}
+          {movie.runtime > 0 ? <Text style={styles.rowRuntime}>{movie.runtime} min</Text> : null}
         </View>
-        {movie.rating > 0 && (
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={12} color={COLORS.accent} />
-            <Text style={styles.ratingText}>{movie.rating.toFixed(1)}</Text>
-          </View>
-        )}
-        {movie.streaming.length > 0 && (
-          <View style={styles.streamingRow}>
-            {movie.streaming.slice(0, 3).map((s) => (
-              <View key={s.id} style={styles.streamingBadge}>
-                <Text style={styles.streamingText}>{s.name}</Text>
+
+        {genres.length > 0 && (
+          <View style={styles.genreChipsRow}>
+            {genres.map((g) => (
+              <View key={g} style={styles.movieGenreChip}>
+                <Text style={styles.movieGenreChipText}>{g}</Text>
               </View>
             ))}
           </View>
         )}
+
+        <View style={styles.bottomRow}>
+          {movie.rating > 0 && (
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={11} color="#FFD700" />
+              <Text style={styles.ratingText}>{movie.rating.toFixed(1)}</Text>
+              <Text style={styles.ratingMax}>/10</Text>
+            </View>
+          )}
+          {movie.streaming.slice(0, 2).map((s) => (
+            <View key={s.id} style={styles.streamingBadge}>
+              <Text style={styles.streamingText}>{s.name}</Text>
+            </View>
+          ))}
+        </View>
       </View>
       <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
     </TouchableOpacity>
@@ -304,33 +310,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     gap: SPACING.md,
   },
   rowPoster: {
-    width: 58,
-    height: 87,
+    width: 66,
+    height: 99,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.surface,
   },
   rowPosterPlaceholder: { justifyContent: 'center', alignItems: 'center' },
-  rowInfo: { flex: 1, gap: 3 },
-  rowTitle: { color: COLORS.text, fontSize: 15, fontWeight: '600', lineHeight: 20 },
-  rowOriginal: { color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic' },
-  rowMeta: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap', alignItems: 'center' },
+  rowInfo: { flex: 1, gap: 5 },
+  rowTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', lineHeight: 20 },
+  rowOriginal: { color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: -2 },
+  rowMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaDot: { color: COLORS.textMuted, fontSize: 12 },
   rowYear: { color: COLORS.textMuted, fontSize: 12 },
-  rowGenre: { color: COLORS.textSecondary, fontSize: 12 },
   rowRuntime: { color: COLORS.textMuted, fontSize: 12 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  ratingText: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
-  streamingRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  genreChipsRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
+  movieGenreChip: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  movieGenreChipText: { color: COLORS.textSecondary, fontSize: 11, fontWeight: '600' },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFD70018',
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#FFD70040',
+  },
+  ratingText: { color: '#FFD700', fontSize: 12, fontWeight: '700' },
+  ratingMax: { color: COLORS.textMuted, fontSize: 10 },
   streamingBadge: {
     backgroundColor: COLORS.primary + '22',
     borderRadius: RADIUS.xs,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '44',
   },
   streamingText: { color: COLORS.primary, fontSize: 10, fontWeight: '600' },
   empty: { alignItems: 'center', marginTop: 60, gap: SPACING.sm },

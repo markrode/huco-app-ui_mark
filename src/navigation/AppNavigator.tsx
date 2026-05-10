@@ -117,7 +117,7 @@ function MainTabs() {
   );
 }
 
-export default function AppNavigator() {
+export default function AppNavigator({ navigationRef }: { navigationRef?: React.RefObject<any> }) {
   const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
@@ -129,7 +129,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
