@@ -18,7 +18,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../components/theme';
 type Mode = 'login' | 'register';
 
 export default function OnboardingScreen() {
-  const { login, register } = useAuth();
+  const { login, register, resetPassword } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
@@ -33,6 +33,25 @@ export default function OnboardingScreen() {
     setUsername('');
     setEmail('');
     setPassword('');
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      Alert.alert('Email requis', 'Saisissez votre adresse email ci-dessus puis réessayez.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      Alert.alert(
+        'Email envoyé',
+        `Si un compte existe pour ${email.trim()}, vous recevrez un lien de réinitialisation.`
+      );
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || "Impossible d'envoyer l'email de réinitialisation.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSubmit() {
@@ -69,12 +88,15 @@ export default function OnboardingScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Branding */}
         <View style={styles.brand}>
           <Text style={styles.logo}>HuCo</Text>
-          <Text style={styles.tagline}>Qu’est-ce qu’on regarde ce soir ?</Text>
+          <Text style={styles.tagline}>Qu'est-ce qu'on regarde ce soir ?</Text>
         </View>
 
+        {/* Form card */}
         <View style={[styles.card, SHADOWS.md]}>
+          {/* Mode toggle */}
           <View style={styles.modeTabs}>
             <TouchableOpacity
               style={[styles.modeTab, mode === 'login' && styles.modeTabActive]}
@@ -94,15 +116,35 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Register-only fields */}
           {mode === 'register' && (
             <>
-              <Field icon="person-outline" placeholder="Nom complet" value={name} onChangeText={setName} />
-              <Field icon="at-outline" placeholder="Nom d’utilisateur" value={username} onChangeText={setUsername} autoCapitalize="none" />
+              <Field
+                icon="person-outline"
+                placeholder="Nom complet"
+                value={name}
+                onChangeText={setName}
+              />
+              <Field
+                icon="at-outline"
+                placeholder="Nom d'utilisateur"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+              />
             </>
           )}
 
-          <Field icon="mail-outline" placeholder="Adresse email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <Field
+            icon="mail-outline"
+            placeholder="Adresse email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
+          {/* Password field with reveal toggle */}
           <View style={styles.field}>
             <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.fieldIcon} />
             <TextInput
@@ -116,10 +158,15 @@ export default function OnboardingScreen() {
               autoCorrect={false}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={18}
+                color={COLORS.textMuted}
+              />
             </TouchableOpacity>
           </View>
 
+          {/* Submit */}
           <TouchableOpacity
             style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSubmit}
@@ -136,14 +183,14 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
 
           {mode === 'login' && (
-            <TouchableOpacity style={styles.forgotBtn} activeOpacity={0.7}>
-              <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+            <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotPassword} activeOpacity={0.7}>
+              <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <Text style={styles.legal}>
-          En continuant, vous acceptez les conditions d’utilisation et la politique de confidentialité de HuCo.
+          En continuant, vous acceptez les conditions d'utilisation et la politique de confidentialité de HuCo.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -184,23 +231,81 @@ function Field({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.xxl },
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xxl,
+  },
   brand: { alignItems: 'center', marginBottom: SPACING.xl },
-  logo: { color: COLORS.primary, fontSize: 52, fontWeight: '900', letterSpacing: 4 },
-  tagline: { color: COLORS.textMuted, fontSize: 15, marginTop: SPACING.sm, fontStyle: 'italic' },
-  card: { backgroundColor: COLORS.surface, borderRadius: RADIUS.xl, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, gap: SPACING.md },
-  modeTabs: { flexDirection: 'row', backgroundColor: COLORS.card, borderRadius: RADIUS.md, padding: 3, gap: 3 },
-  modeTab: { flex: 1, paddingVertical: SPACING.sm, alignItems: 'center', borderRadius: RADIUS.sm },
+  logo: {
+    color: COLORS.primary,
+    fontSize: 52,
+    fontWeight: '900',
+    letterSpacing: 4,
+  },
+  tagline: {
+    color: COLORS.textMuted,
+    fontSize: 15,
+    marginTop: SPACING.sm,
+    fontStyle: 'italic',
+  },
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: SPACING.md,
+  },
+  modeTabs: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.md,
+    padding: 3,
+    gap: 3,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    borderRadius: RADIUS.sm,
+  },
   modeTabActive: { backgroundColor: COLORS.primary },
   modeTabText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
   modeTabTextActive: { color: COLORS.text },
-  field: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: SPACING.md },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+  },
   fieldIcon: { marginRight: SPACING.sm },
-  fieldInput: { flex: 1, color: COLORS.text, fontSize: 15, paddingVertical: 14 },
-  submitBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 15, alignItems: 'center' },
+  fieldInput: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 15,
+    paddingVertical: 14,
+  },
+  submitBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
   submitBtnDisabled: { opacity: 0.6 },
   submitText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
   forgotBtn: { alignItems: 'center', paddingVertical: SPACING.xs },
   forgotText: { color: COLORS.textMuted, fontSize: 13 },
-  legal: { color: COLORS.textMuted, fontSize: 11, textAlign: 'center', marginTop: SPACING.xl, lineHeight: 16, paddingHorizontal: SPACING.lg },
+  legal: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: SPACING.xl,
+    lineHeight: 16,
+    paddingHorizontal: SPACING.lg,
+  },
 });

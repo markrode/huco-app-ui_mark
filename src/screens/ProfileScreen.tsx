@@ -62,6 +62,17 @@ export default function ProfileScreen() {
     ]);
   }
 
+  function handleDeleteCircle(id: string, name: string) {
+    Alert.alert('Supprimer', `Supprimer le cercle "${name}" ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => dispatch({ type: 'REMOVE_CIRCLE', circleId: id }),
+      },
+    ]);
+  }
+
   const avgRating =
     state.library.length > 0
       ? (state.library.reduce((acc, e) => acc + e.userRating.stars, 0) / state.library.length).toFixed(1)
@@ -165,6 +176,12 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.circleName}>{circle.name}</Text>
                 <Text style={styles.circleCount}>{circle.members.length} membre{circle.members.length !== 1 ? 's' : ''}</Text>
+                <TouchableOpacity
+                  onPress={() => handleDeleteCircle(circle.id, circle.name)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={17} color={COLORS.textMuted} />
+                </TouchableOpacity>
               </View>
               <View style={styles.circleMembers}>
                 {circle.members.map((m) => (
@@ -190,7 +207,7 @@ export default function ProfileScreen() {
           <StatCard icon="mail" label="Reco reçues" value={state.inbox.length} color={COLORS.primary} />
           <StatCard icon="star" label="Note moyenne" value={avgRating} color={COLORS.accent} />
           <StatCard icon="people" label="Contacts" value={state.contacts.length} color={COLORS.info} />
-          <StatCard icon="paper-plane" label="Reco envoyées" value={(state.sentRecs || []).length} color={COLORS.success} />
+          <StatCard icon="paper-plane" label="Reco envoyées" value={state.sentRecs.length} color={COLORS.success} />
         </ScrollView>
       )}
 

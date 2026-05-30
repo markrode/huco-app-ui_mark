@@ -34,14 +34,16 @@ export default function FeedbackScreen() {
   const [type, setType] = useState<FeedbackType>('suggestion');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const selectedType = TYPES.find((t) => t.key === type)!;
 
   async function handleSend() {
     if (!message.trim()) {
-      Alert.alert('Message vide', 'Veuillez écrire un message avant d\'envoyer.');
+      setError('Veuillez écrire un message avant d\'envoyer.');
       return;
     }
+    setError(null);
     setSending(true);
     const subject = encodeURIComponent(SUBJECTS[type]);
     const body = encodeURIComponent(
@@ -135,13 +137,14 @@ export default function FeedbackScreen() {
             }
             placeholderTextColor={COLORS.textMuted}
             value={message}
-            onChangeText={setMessage}
+            onChangeText={(t) => { setMessage(t); if (error) setError(null); }}
             multiline
             textAlignVertical="top"
             autoCorrect
             maxLength={2000}
           />
           <Text style={styles.charCount}>{message.length} / 2000</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </View>
 
         {/* Send */}
@@ -256,6 +259,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   charCount: { color: COLORS.textMuted, fontSize: 11, textAlign: 'right' },
+  errorText: { color: COLORS.primary, fontSize: 12, marginTop: 2 },
   sendBtn: {
     flexDirection: 'row',
     alignItems: 'center',

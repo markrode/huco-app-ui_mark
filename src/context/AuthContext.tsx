@@ -12,6 +12,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: Partial<AppUser>) => Promise<void>;
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
 }
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextValue>({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
+  resetPassword: async () => {},
   updateProfile: async () => {},
   updateSettings: async () => {},
 });
@@ -166,6 +168,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (settings.notificationsEnabled) requestNotificationPermission();
   }
 
+  async function resetPassword(email: string) {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw new Error(error.message);
+      return;
+    }
+    // Mock: silently succeed — no real email can be sent without Supabase
+  }
+
   async function logout() {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
@@ -208,6 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        resetPassword,
         updateProfile,
         updateSettings,
       }}

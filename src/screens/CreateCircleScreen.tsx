@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -14,12 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
+import { useToast } from '../components/Toast';
 import { COLORS, SPACING, RADIUS } from '../components/theme';
 import { Circle } from '../types';
 
 export default function CreateCircleScreen() {
   const navigation = useNavigation<any>();
   const { state, dispatch } = useApp();
+  const { showToast } = useToast();
   const [name, setName] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -31,14 +32,7 @@ export default function CreateCircleScreen() {
 
   function handleCreate() {
     const trimmed = name.trim();
-    if (!trimmed) {
-      Alert.alert('Nom requis', 'Veuillez donner un nom à votre cercle.');
-      return;
-    }
-    if (selectedIds.length === 0) {
-      Alert.alert('Membres requis', 'Ajoutez au moins un contact à votre cercle.');
-      return;
-    }
+    if (!trimmed || selectedIds.length === 0) return;
     const members = state.contacts.filter((c) => selectedIds.includes(c.id));
     const circle: Circle = {
       id: Date.now().toString(),
@@ -46,6 +40,7 @@ export default function CreateCircleScreen() {
       members,
     };
     dispatch({ type: 'ADD_CIRCLE', circle });
+    showToast(`Cercle "${trimmed}" créé avec succès.`, 'success');
     navigation.goBack();
   }
 
