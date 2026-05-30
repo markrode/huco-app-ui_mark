@@ -11,11 +11,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import StarRating from '../components/StarRating';
 import Avatar from '../components/Avatar';
 import RatingModal from '../components/RatingModal';
 import { COLORS, SPACING, RADIUS } from '../components/theme';
 import { useToast } from '../components/Toast';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Movie, Contact, Circle, UserRating } from '../types';
 
 type Recipient = { type: 'contact'; data: Contact } | { type: 'circle'; data: Circle };
@@ -24,6 +26,7 @@ export default function SendRecommendationScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { state, dispatch } = useApp();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const movie: Movie | undefined = route.params?.movie;
 
@@ -59,23 +62,66 @@ export default function SendRecommendationScreen() {
     });
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!movie || !rating) return;
     if (!libraryEntry) {
       dispatch({ type: 'ADD_TO_LIBRARY', movie, rating });
     }
+
+    const recId = Date.now().toString();
     dispatch({
       type: 'ADD_SENT_RECOMMENDATION',
       recommendation: {
-        id: Date.now().toString(),
+        id: recId,
         movie,
         userRating: rating,
         recipients: selectedRecipients.map((r) => r.data),
         sentAt: new Date().toISOString(),
       },
     });
+
+    // Deliver to linked HuCo accounts via Supabase recommendations table
+    if (isSupabaseConfigured && supabase && user) {
+      const rows: any[] = [];
+      for (const r of selectedRecipients) {
+        if (r.type === 'contact') {
+          const contact = r.data as Contact;
+          if (contact.userId) {
+            rows.push({
+              id: `${recId}-${contact.userId}`,
+              sender_id: user.id,
+              recipient_id: contact.userId,
+              movie,
+              user_rating: rating,
+              sender_name: user.name,
+              sender_username: user.username,
+              sender_avatar: user.avatar || '',
+            });
+          }
+        } else {
+          for (const m of (r.data as Circle).members) {
+            if (m.userId) {
+              rows.push({
+                id: `${recId}-${m.userId}`,
+                sender_id: user.id,
+                recipient_id: m.userId,
+                movie,
+                user_rating: rating,
+                sender_name: user.name,
+                sender_username: user.username,
+                sender_avatar: user.avatar || '',
+              });
+            }
+          }
+        }
+      }
+      if (rows.length > 0) {
+        await supabase.from('recommendations').insert(rows);
+      }
+    }
+
     showToast(
-      `"${movie.title}" envoyé à ${selectedRecipients.length} destinataire${selectedRecipients.length > 1 ? 's' : ''}.`,
+      `"${movie.title}" envoye a ${selectedRecipients.length} destinataire${selectedRecipients.length > 1 ? 's' : ''}.`,
       'success'
     );
     navigation.goBack();
@@ -170,6 +216,7 @@ export default function SendRecommendationScreen() {
             subtitle={contact.username}
             avatar={contact.avatar}
             selected={isSelected(contact.id)}
+            linked={!!contact.userId}
             onPress={() => toggleRecipient({ type: 'contact', data: contact })}
           />
         ))}
@@ -197,7 +244,7 @@ export default function SendRecommendationScreen() {
         <TouchableOpacity onPress={() => setStep('recipients')} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Récapitulatif</Text>
+        <Text style={styles.headerTitle}>Recapitulatif</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -215,7 +262,7 @@ export default function SendRecommendationScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>À envoyer à :</Text>
+        <Text style={styles.label}>A envoyer a :</Text>
         {selectedRecipients.map((r) => (
           <View key={r.type === 'contact' ? r.data.id : r.data.id} style={styles.recipientChip}>
             <Avatar initials={r.type === 'contact' ? r.data.avatar : r.data.name.charAt(0)} size={28} />
@@ -223,7 +270,7 @@ export default function SendRecommendationScreen() {
               {r.type === 'contact' ? r.data.name : r.data.name}
             </Text>
             {r.type === 'circle' && (
-              <Text style={styles.chipMeta}>· cercle</Text>
+              <Text style={styles.chipMeta}>- cercle</Text>
             )}
           </View>
         ))}
@@ -242,6 +289,7 @@ function RecipientRow({
   subtitle,
   avatar,
   selected,
+  linked = false,
   onPress,
   isCircle = false,
 }: {
@@ -249,6 +297,7 @@ function RecipientRow({
   subtitle: string;
   avatar: string;
   selected: boolean;
+  linked?: boolean;
   onPress: () => void;
   isCircle?: boolean;
 }) {
@@ -262,7 +311,14 @@ function RecipientRow({
         <Avatar initials={avatar} size={40} />
       )}
       <View style={styles.recipientInfo}>
-        <Text style={styles.recipientTitle}>{title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.recipientTitle}>{title}</Text>
+          {linked && (
+            <View style={styles.linkedBadge}>
+              <Text style={styles.linkedBadgeText}>HuCo</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.recipientSubtitle}>{subtitle}</Text>
       </View>
       <Ionicons
@@ -368,6 +424,13 @@ const styles = StyleSheet.create({
   recipientInfo: { flex: 1 },
   recipientTitle: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   recipientSubtitle: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  linkedBadge: {
+    backgroundColor: COLORS.primary + '33',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  linkedBadgeText: { color: COLORS.primary, fontSize: 10, fontWeight: '700' },
   recipientChip: {
     flexDirection: 'row',
     alignItems: 'center',

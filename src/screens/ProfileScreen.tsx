@@ -9,12 +9,15 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
+import { useToast } from '../components/Toast';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { COLORS, SPACING, RADIUS } from '../components/theme';
 import { Contact } from '../types';
 
@@ -25,30 +28,79 @@ export default function ProfileScreen() {
   const { state, dispatch } = useApp();
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('contacts');
+  const { showToast } = useToast();
   const [addContactModal, setAddContactModal] = useState(false);
+  // Supabase search mode
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResult, setSearchResult] = useState<null | false | {
+    id: string; name: string; username: string; avatar: string;
+  }>(null);
+  // Manual entry mode (no Supabase)
   const [newContactName, setNewContactName] = useState('');
   const [newContactUsername, setNewContactUsername] = useState('');
 
-  function handleAddContact() {
+  async function handleSearchContact() {
+    const q = searchQuery.trim().replace(/^@/, '');
+    if (!q || !supabase) return;
+    setSearchLoading(true);
+    setSearchResult(null);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar')
+        .eq('username', `@${q}`)
+        .single();
+      setSearchResult(data || false);
+    } catch {
+      setSearchResult(false);
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  function handleAddLinkedContact() {
+    if (!searchResult) return;
+    if (state.contacts.some((c) => c.userId === searchResult.id)) {
+      showToast('Ce contact est deja dans votre liste.', 'info');
+      return;
+    }
+    dispatch({
+      type: 'ADD_CONTACT',
+      contact: {
+        id: Date.now().toString(),
+        userId: searchResult.id,
+        name: searchResult.name,
+        username: searchResult.username,
+        avatar: searchResult.avatar || searchResult.name.slice(0, 2).toUpperCase(),
+      },
+    });
+    resetModal();
+  }
+
+  function handleAddManualContact() {
     if (!newContactName.trim()) return;
-    const initials = newContactName
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-    const contact: Contact = {
-      id: Date.now().toString(),
-      name: newContactName.trim(),
-      avatar: initials,
-      username: newContactUsername.trim()
-        ? `@${newContactUsername.trim().replace('@', '')}`
-        : `@${newContactName.toLowerCase().replace(/\s+/g, '')}`,
-    };
-    dispatch({ type: 'ADD_CONTACT', contact });
+    const initials = newContactName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    dispatch({
+      type: 'ADD_CONTACT',
+      contact: {
+        id: Date.now().toString(),
+        name: newContactName.trim(),
+        avatar: initials,
+        username: newContactUsername.trim()
+          ? `@${newContactUsername.trim().replace('@', '')}`
+          : `@${newContactName.toLowerCase().replace(/\s+/g, '')}`,
+      },
+    });
+    resetModal();
+  }
+
+  function resetModal() {
+    setAddContactModal(false);
+    setSearchQuery('');
+    setSearchResult(null);
     setNewContactName('');
     setNewContactUsername('');
-    setAddContactModal(false);
   }
 
   function handleRemoveContact(id: string, name: string) {
@@ -76,7 +128,7 @@ export default function ProfileScreen() {
   const avgRating =
     state.library.length > 0
       ? (state.library.reduce((acc, e) => acc + e.userRating.stars, 0) / state.library.length).toFixed(1)
-      : '—';
+      : '-';
 
   return (
     <View style={styles.container}>
@@ -104,7 +156,7 @@ export default function ProfileScreen() {
         <View style={styles.statDivider} />
         <StatPill label="Watchlist" value={state.watchlist.length} />
         <View style={styles.statDivider} />
-        <StatPill label="Reçues" value={state.inbox.filter(r => r.status === 'pending').length} />
+        <StatPill label="Recues" value={state.inbox.filter(r => r.status === 'pending').length} />
         <View style={styles.statDivider} />
         <StatPill label="Note moy." value={avgRating} />
       </View>
@@ -166,7 +218,7 @@ export default function ProfileScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
-            <Text style={styles.addBtnText}>Créer un cercle</Text>
+            <Text style={styles.addBtnText}>Creer un cercle</Text>
           </TouchableOpacity>
           {state.circles.map((circle) => (
             <View key={circle.id} style={styles.circleCard}>
@@ -194,7 +246,7 @@ export default function ProfileScreen() {
             </View>
           ))}
           {state.circles.length === 0 && (
-            <EmptyState icon="people-circle-outline" text="Aucun cercle créé" />
+            <EmptyState icon="people-circle-outline" text="Aucun cercle cree" />
           )}
         </ScrollView>
       )}
@@ -204,10 +256,10 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.statsGrid} showsVerticalScrollIndicator={false}>
           <StatCard icon="library" label="Films vus" value={state.library.length} color={COLORS.success} />
           <StatCard icon="bookmark" label="Watchlist" value={state.watchlist.length} color={COLORS.accent} />
-          <StatCard icon="mail" label="Reco reçues" value={state.inbox.length} color={COLORS.primary} />
+          <StatCard icon="mail" label="Reco recues" value={state.inbox.length} color={COLORS.primary} />
           <StatCard icon="star" label="Note moyenne" value={avgRating} color={COLORS.accent} />
           <StatCard icon="people" label="Contacts" value={state.contacts.length} color={COLORS.info} />
-          <StatCard icon="paper-plane" label="Reco envoyées" value={state.sentRecs.length} color={COLORS.success} />
+          <StatCard icon="paper-plane" label="Reco envoyees" value={state.sentRecs.length} color={COLORS.success} />
         </ScrollView>
       )}
 
@@ -217,41 +269,93 @@ export default function ProfileScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Ajouter un contact</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Nom complet"
-              placeholderTextColor={COLORS.textMuted}
-              value={newContactName}
-              onChangeText={setNewContactName}
-              autoCapitalize="words"
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="@username (optionnel)"
-              placeholderTextColor={COLORS.textMuted}
-              value={newContactUsername}
-              onChangeText={setNewContactUsername}
-              autoCapitalize="none"
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancel}
-                onPress={() => {
-                  setAddContactModal(false);
-                  setNewContactName('');
-                  setNewContactUsername('');
-                }}
-              >
-                <Text style={styles.modalCancelText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalConfirm, !newContactName.trim() && { opacity: 0.4 }]}
-                onPress={handleAddContact}
-                disabled={!newContactName.trim()}
-              >
-                <Text style={styles.modalConfirmText}>Ajouter</Text>
-              </TouchableOpacity>
-            </View>
+
+            {isSupabaseConfigured ? (
+              <>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    style={[styles.modalInput, { flex: 1 }]}
+                    placeholder="@username HuCo"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={searchQuery}
+                    onChangeText={(t) => { setSearchQuery(t); setSearchResult(null); }}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                    onSubmitEditing={handleSearchContact}
+                  />
+                  <TouchableOpacity
+                    style={[styles.searchBtn, !searchQuery.trim() && { opacity: 0.4 }]}
+                    onPress={handleSearchContact}
+                    disabled={!searchQuery.trim()}
+                  >
+                    <Ionicons name="search" size={18} color={COLORS.text} />
+                  </TouchableOpacity>
+                </View>
+
+                {searchLoading && (
+                  <ActivityIndicator color={COLORS.primary} style={{ marginVertical: SPACING.sm }} />
+                )}
+
+                {searchResult === false && (
+                  <Text style={styles.searchEmpty}>Aucun compte HuCo trouve pour ce username.</Text>
+                )}
+
+                {searchResult && (
+                  <View style={styles.searchResultRow}>
+                    <Avatar initials={searchResult.avatar || searchResult.name.slice(0, 2).toUpperCase()} size={40} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.contactName}>{searchResult.name}</Text>
+                      <Text style={styles.contactUsername}>{searchResult.username}</Text>
+                    </View>
+                    <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
+                  </View>
+                )}
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.modalCancel} onPress={resetModal}>
+                    <Text style={styles.modalCancelText}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalConfirm, !searchResult && { opacity: 0.4 }]}
+                    onPress={handleAddLinkedContact}
+                    disabled={!searchResult}
+                  >
+                    <Text style={styles.modalConfirmText}>Ajouter</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Nom complet"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={newContactName}
+                  onChangeText={setNewContactName}
+                  autoCapitalize="words"
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="@username (optionnel)"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={newContactUsername}
+                  onChangeText={setNewContactUsername}
+                  autoCapitalize="none"
+                />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.modalCancel} onPress={resetModal}>
+                    <Text style={styles.modalCancelText}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalConfirm, !newContactName.trim() && { opacity: 0.4 }]}
+                    onPress={handleAddManualContact}
+                    disabled={!newContactName.trim()}
+                  >
+                    <Text style={styles.modalConfirmText}>Ajouter</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -461,4 +565,23 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: { color: COLORS.text, fontWeight: '700' },
   info: { color: COLORS.info },
+  searchRow: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'center' },
+  searchBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchEmpty: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', marginVertical: SPACING.sm },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.success + '44',
+  },
 });

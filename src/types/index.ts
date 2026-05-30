@@ -41,6 +41,7 @@ export interface WatchlistEntry {
 
 export interface Contact {
   id: string;
+  userId?: string;  // Supabase UUID -- present only for linked HuCo accounts
   name: string;
   avatar: string;
   username: string;

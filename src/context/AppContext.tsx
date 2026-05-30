@@ -18,6 +18,7 @@ import {
   MOCK_CIRCLES,
 } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { scheduleNewRecommendationNotification } from '../lib/notifications';
 
 interface AppState {
   library: LibraryEntry[];
@@ -41,14 +42,37 @@ type Action =
   | { type: 'ADD_CIRCLE'; circle: Circle }
   | { type: 'REMOVE_CIRCLE'; circleId: string }
   | { type: 'ADD_SENT_RECOMMENDATION'; recommendation: SentRecommendation }
+  | { type: 'RECEIVE_RECOMMENDATION'; rec: ReceivedRecommendation }
   | { type: 'HYDRATE'; state: AppState };
 
 const STORAGE_KEY = '@huco_state';
+
+function mapSupabaseRec(r: any): ReceivedRecommendation {
+  return {
+    id: r.id,
+    movie: r.movie,
+    sender: {
+      id: r.sender_id,
+      userId: r.sender_id,
+      name: r.sender_name,
+      username: r.sender_username,
+      avatar: r.sender_avatar || '',
+    },
+    senderRating: r.user_rating,
+    receivedAt: r.sent_at,
+    status: 'pending',
+  };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE':
       return action.state;
+
+    case 'RECEIVE_RECOMMENDATION': {
+      if (state.inbox.some((r) => r.id === action.rec.id)) return state;
+      return { ...state, inbox: [action.rec, ...state.inbox] };
+    }
 
     case 'ADD_TO_LIBRARY': {
       const exists = state.library.some((e) => e.movie.id === action.movie.id);
@@ -196,31 +220,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
+  const channelRef = useRef<any>(null);
 
-  // Hydrate: try Supabase first, fall back to AsyncStorage
   useEffect(() => {
     async function hydrate() {
       if (isSupabaseConfigured && supabase) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          const { data } = await supabase
-            .from('user_data')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
+          const [{ data }, { data: recRows }] = await Promise.all([
+            supabase.from('user_data').select('*').eq('user_id', session.user.id).single(),
+            supabase.from('recommendations').select('*').eq('recipient_id', session.user.id).order('sent_at', { ascending: false }),
+          ]);
+
           if (data) {
+            const existingInbox: ReceivedRecommendation[] = data.inbox ?? INITIAL_RECOMMENDATIONS;
+            const supabaseInbox = (recRows || []).map(mapSupabaseRec);
+            // Merge: preserve handled statuses already stored in user_data.inbox
+            const merged = supabaseInbox.map((r) => {
+              const existing = existingInbox.find((e) => e.id === r.id);
+              return existing ? { ...r, status: existing.status } : r;
+            });
+            const jsonbOnly = existingInbox.filter((e) => !supabaseInbox.some((r) => r.id === e.id));
+
             dispatch({
               type: 'HYDRATE',
               state: {
                 library: data.library ?? [],
                 watchlist: data.watchlist ?? [],
-                inbox: data.inbox ?? INITIAL_RECOMMENDATIONS,
+                inbox: [...merged, ...jsonbOnly],
                 sentRecs: data.sent_recs ?? [],
                 contacts: data.contacts ?? MOCK_CONTACTS,
                 circles: data.circles ?? MOCK_CIRCLES,
               },
             });
             hydratedRef.current = true;
+
+            // Subscribe to new incoming recommendations via Realtime
+            channelRef.current = supabase
+              .channel(`inbox:${session.user.id}`)
+              .on(
+                'postgres_changes',
+                {
+                  event: 'INSERT',
+                  schema: 'public',
+                  table: 'recommendations',
+                  filter: `recipient_id=eq.${session.user.id}`,
+                },
+                (payload) => {
+                  const r = payload.new as any;
+                  dispatch({ type: 'RECEIVE_RECOMMENDATION', rec: mapSupabaseRec(r) });
+                  scheduleNewRecommendationNotification(r.sender_name, r.movie?.title || '');
+                }
+              )
+              .subscribe();
+
             return;
           }
         }
@@ -232,7 +285,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       hydratedRef.current = true;
     }
+
     hydrate();
+
+    return () => {
+      if (channelRef.current && supabase) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
   }, []);
 
   // Persist on every state change (debounced Supabase sync, immediate AsyncStorage)
