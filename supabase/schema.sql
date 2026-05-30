@@ -1,8 +1,8 @@
--- HuCo — Supabase schema
--- Paste this entire file into Supabase → SQL Editor → New query → Run.
+-- HuCo -- Supabase schema
+-- Paste this entire file into Supabase -> SQL Editor -> New query -> Run.
 -- Safe to re-run (uses IF NOT EXISTS / OR REPLACE throughout).
 
--- ─── Profiles ──────────────────────────────────────────────────────────────────────────────
+-- Profiles
 -- Extends auth.users; one row per registered user.
 create table if not exists public.profiles (
   id          uuid references auth.users on delete cascade primary key,
@@ -17,8 +17,8 @@ create table if not exists public.profiles (
 
 create index if not exists profiles_username_idx on public.profiles (username);
 
--- ─── User data ────────────────────────────────────────────────────────────────────────
--- All app state stored as JSONB columns — one row per user.
+-- User data
+-- All app state stored as JSONB columns -- one row per user.
 -- This matches AppContext.tsx which upserts the full state blob on every change.
 create table if not exists public.user_data (
   user_id     uuid references auth.users on delete cascade primary key,
@@ -31,8 +31,8 @@ create table if not exists public.user_data (
   updated_at  timestamptz default now()
 );
 
--- ─── Row Level Security ────────────────────────────────────────────────────────────────────
-alt table public.profiles  enable row level security;
+-- Row Level Security
+alter table public.profiles  enable row level security;
 alter table public.user_data enable row level security;
 
 -- Each user can only read and write their own rows.
@@ -46,7 +46,7 @@ create policy "user_data: own row"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- ─── Auto-updated timestamps ──────────────────────────────────────────────────────────────
+-- Auto-updated timestamps
 create or replace function public.handle_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -63,7 +63,7 @@ create trigger user_data_updated_at
   before update on public.user_data
   for each row execute function public.handle_updated_at();
 
--- ─── Auto-provision user_data on first profile insert ────────────────────────────────────────────
+-- Auto-provision user_data on first profile insert
 -- Creates an empty user_data row as soon as a profile is inserted,
 -- so the first AppContext sync can use UPDATE instead of relying solely on UPSERT.
 create or replace function public.handle_new_profile()

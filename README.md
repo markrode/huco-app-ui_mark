@@ -1,18 +1,16 @@
-# HuCo — Application de recommandation de films
+# HuCo -- Application de recommandation de films
 
-> *"Ça qu'est-ce qu'on regarde ce soir ?"*  
-> Notez les films que vous avez vus, constituez votre bibliothèque et envoyez des recommandations personnalisées à vos amis et cercles.
+> *"Qu'est-ce qu'on regarde ce soir ?"*
+> Notez les films que vous avez vus, constituez votre bibliotheque et envoyez des recommandations personnalisees a vos amis et cercles.
 
 ---
 
 ## Sommaire
 
-1. [Fonctionnalités](#fonctionnalités)
-2. [Prérequis](#prérequis)
+1. [Fonctionnalites](#fonctionnalites)
+2. [Prerequis](#prerequis)
 3. [Installation](#installation)
 4. [Configuration des APIs](#configuration-des-apis)
-   - [TMDB — Films réels](#tmdb--films-réels-optionnel-mais-recommandé)
-   - [Supabase — Authentification & synchronisation](#supabase--authentification--synchronisation-optionnel)
 5. [Lancer l'application](#lancer-lapplication)
 6. [Architecture](#architecture)
 7. [Stack technique](#stack-technique)
@@ -20,30 +18,30 @@
 
 ---
 
-## Fonctionnalités
+## Fonctionnalites
 
-| Écran | Description |
+| Ecran | Description |
 |---|---|
-| **Accueil** | Hero film en avant-scène, tendances TMDB de la semaine, réseau, pull-to-refresh |
-| **Recherche** | Recherche temps réel + 8 chips de genre (Action, Comédie, Thriller…) |
-| **Détail film** | Synopsis, casting (6 noms), plateformes streaming FR, trailer YouTube, partage natif |
-| **Bibliothèque** | Films vus, triables par date / note / A–Z, modifiables |
-| **Watchlist** | Films à voir avec l'avis de l'expéditeur ; marquer comme vu déclenche la notation |
-| **Inbox** | Gérer les recommandations reçues (Watchlist / Bibliothèque / Ignorer) |
-| **Envoi de reco** | Flux 3 étapes : noter le film → choisir contacts/cercles → envoyer |
-| **Profil** | Contacts, cercles (création & suppression), statistiques (6 indicateurs) |
-| **Paramètres** | Notifications push, Confidentialité, CGU, déconnexion |
+| **Accueil** | Hero film en avant-scene, tendances TMDB de la semaine, reseau, pull-to-refresh |
+| **Recherche** | Recherche temps reel + 8 chips de genre (Action, Comedie, Thriller...) |
+| **Detail film** | Synopsis, casting (6 noms), plateformes streaming FR, trailer YouTube, partage natif |
+| **Bibliotheque** | Films vus, triables par date / note / A-Z, modifiables |
+| **Watchlist** | Films a voir avec l'avis de l'expediteur ; marquer comme vu declenche la notation |
+| **Inbox** | Gerer les recommandations recues (Watchlist / Bibliotheque / Ignorer) |
+| **Envoi de reco** | Flux 3 etapes : noter le film -> choisir contacts/cercles -> envoyer |
+| **Profil** | Contacts, cercles (creation & suppression), statistiques (6 indicateurs) |
+| **Parametres** | Notifications push, Confidentialite, CGU, deconnexion |
 | **Compte** | Modifier nom / username / avatar, suppression de compte |
-| **Connexion** | Login / Inscription + réinitialisation de mot de passe |
-| **Aide** | FAQ accordéon (8 questions), liens vers le feedback |
-| **Feedback** | Signalement de bug / suggestion envoyé par e-mail |
-| **Créer un cercle** | Nommer + sélectionner des contacts → cercle réutilisable |
+| **Connexion** | Login / Inscription + reinitialisation de mot de passe |
+| **Aide** | FAQ accordeon (8 questions), liens vers le feedback |
+| **Feedback** | Signalement de bug / suggestion envoye par e-mail |
+| **Creer un cercle** | Nommer + selectionner des contacts -> cercle reutilisable |
 
-**Mode hors-ligne :** sans clé API ni Supabase, l'application est 100 % fonctionnelle avec 6 films de démonstration, des contacts mockés et une persistance locale (AsyncStorage).
+**Mode hors-ligne :** sans cle API ni Supabase, l'application est 100% fonctionnelle avec 6 films de demonstration, des contacts mockes et une persistance locale (AsyncStorage).
 
 ---
 
-## Prérequis
+## Prerequis
 
 | Outil | Version minimale | Installation |
 |---|---|---|
@@ -53,46 +51,46 @@
 | Expo Go (mobile) | latest | App Store / Google Play |
 
 Pour le build natif (optionnel) :
-- **iOS** — macOS + Xcode 15+
-- **Android** — Android Studio + SDK 34
+- **iOS** -- macOS + Xcode 15+
+- **Android** -- Android Studio + SDK 34
 
 ---
 
 ## Installation
 
 ```bash
-# 1. Cloner le dépôt
+# 1. Cloner le depot
 git clone https://github.com/markrode/huco-app-ui_mark.git
 cd huco-app-ui_mark
 
-# 2. Installer les dépendances
+# 2. Installer les dependances
 npm install
 
-# 3. Créer le fichier d'environnement
+# 3. Creer le fichier d'environnement
 cp .env.example .env
-# → éditez .env avec vos clés (voir section suivante)
+# Editez .env avec vos cles (voir section suivante)
 
-# 4. Démarrer
-npm start          # Expo Dev Tools → scanner le QR avec Expo Go
+# 4. Demarrer
+npm start          # Expo Dev Tools -> scanner le QR avec Expo Go
 ```
 
 ---
 
 ## Configuration des APIs
 
-### TMDB — Films réels *(optionnel mais recommandé)*
+### TMDB -- Films reels (optionnel mais recommande)
 
-Sans clé TMDB, l'app affiche 6 films de démonstration. Avec une clé :
+Sans cle TMDB, l'app affiche 6 films de demonstration. Avec une cle :
 - Tendances de la semaine (home)
-- Recherche de films réels
+- Recherche de films reels
 - Providers streaming pour la France
 - Trailers YouTube
 
-**Obtenir une clé gratuitement :**
+**Obtenir une cle gratuitement :**
 
-1. Créer un compte sur [themoviedb.org](https://www.themoviedb.org/signup)
-2. *Paramètres → API → Créer une clé (v3)*
-3. Copier la **Clé API (v3 auth)**
+1. Creer un compte sur [themoviedb.org](https://www.themoviedb.org/signup)
+2. Parametres -> API -> Creer une cle (v3)
+3. Copier la **Cle API (v3 auth)**
 4. Dans `.env` :
 
 ```env
@@ -101,40 +99,42 @@ EXPO_PUBLIC_TMDB_API_KEY=votre_cle_tmdb_ici
 
 ---
 
-### Supabase — Authentification & synchronisation *(optionnel)*
+### Supabase -- Authentification & synchronisation (optionnel)
 
-Sans Supabase, l'authentification est mockée (n'importe quel e-mail/mot de passe fonctionne) et les données sont sauvegardées localement. Avec Supabase :
-- Authentification réelle par e-mail
-- Réinitialisation de mot de passe par e-mail
-- Synchronisation des données entre appareils
+Sans Supabase, l'authentification est mockee (n'importe quel e-mail/mot de passe fonctionne) et les donnees sont sauvegardees localement. Avec Supabase :
+- Authentification reelle par e-mail
+- Reinitialisation de mot de passe par e-mail
+- Synchronisation des donnees entre appareils
 
-#### Étape 1 — Créer un projet Supabase
+#### Etape 1 -- Creer un projet Supabase
 
-1. Aller sur [supabase.com](https://supabase.com) → **New project**
-2. Choisir une région (Europe West recommandé)
-3. Noter le **Project URL** et la **anon public key**  
-   *(Settings → API → Project URL + Project API keys → anon public)*
+1. Aller sur [supabase.com](https://supabase.com) -> **New project**
+2. Choisir une region (Europe West recommande)
+3. Noter le **Project URL** et la **anon public key**
+   (Settings -> API -> Project URL + Project API keys -> anon public)
 
-#### Étape 2 — Déployer le schéma SQL
+#### Etape 2 -- Deployer le schema SQL
 
-Ouvrir **SQL Editor → New query**, coller le contenu de [`supabase/schema.sql`](./supabase/schema.sql) et cliquer **Run**.
+Ouvrir **SQL Editor -> New query**, coller le contenu de [`supabase/schema.sql`](./supabase/schema.sql) et cliquer **Run**.
 
-Ce script crée :
+Ce script cree :
 
-| Table | Rôle |
+| Table | Role |
 |---|---|
-| `public.profiles` | Profil utilisateur (étend `auth.users`) |
-| `public.user_data` | État complet de l'app en JSONB (bibliothèque, watchlist, inbox…) |
+| `public.profiles` | Profil utilisateur (etend `auth.users`) |
+| `public.user_data` | Etat complet de l'app en JSONB (bibliotheque, watchlist, inbox...) |
 
-Politiques RLS : chaque utilisateur ne peut lire/écrire que ses propres données.
+Politiques RLS : chaque utilisateur ne peut lire/ecrire que ses propres donnees.
 
-#### Étape 3 — Activer l'authentification par e-mail
+#### Etape 3 -- Activer l'authentification par e-mail
 
-**Authentication → Providers → Email** → activer *Enable Email provider*.
+**Authentication -> Providers -> Email** -> activer *Enable Email provider*.
 
-> Pour la réinitialisation de mot de passe, vérifiez que l'URL de redirection dans *Authentication → URL Configuration → Redirect URLs* correspond à votre schéma Expo (`exp://` en dev, `huco://` en prod).
+> Pour la reinitialisation de mot de passe, verifiez que l'URL de redirection dans
+> *Authentication -> URL Configuration -> Redirect URLs* correspond a votre schema Expo
+> (`exp://` en dev, `huco://` en prod).
 
-#### Étape 4 — Renseigner les variables d'environnement
+#### Etape 4 -- Renseigner les variables d'environnement
 
 Dans `.env` :
 
@@ -143,20 +143,21 @@ EXPO_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-L'application détecte automatiquement la présence de ces variables et bascule en mode Supabase. **Aucune modification du code source n'est nécessaire.**
+L'application detecte automatiquement la presence de ces variables et bascule en mode Supabase.
+**Aucune modification du code source n'est necessaire.**
 
 ---
 
 ## Lancer l'application
 
 ```bash
-npm start          # Expo Go — scanner le QR code avec l'app Expo Go
-npm run android    # Émulateur Android (Android Studio requis)
-npm run ios        # Simulateur iOS (Xcode requis — macOS uniquement)
-npm run web        # Navigateur (fonctionnalités limitées)
+npm start          # Expo Go -- scanner le QR code avec l'app Expo Go
+npm run android    # Emulateur Android (Android Studio requis)
+npm run ios        # Simulateur iOS (Xcode requis -- macOS uniquement)
+npm run web        # Navigateur (fonctionnalites limitees)
 ```
 
-**Vérification TypeScript :**
+**Verification TypeScript :**
 
 ```bash
 npx tsc --noEmit   # doit retourner sans erreur
@@ -168,80 +169,80 @@ npx tsc --noEmit   # doit retourner sans erreur
 
 ```
 huco-app-ui_mark/
-├── App.tsx                        # Providers + notification listener
-├── .env.example                   # Template des variables d'environnement
-├── supabase/
-│   └── schema.sql                 # Schéma SQL à déployer sur Supabase
-└── src/
-    ├── types/
-    │   └── index.ts               # Interfaces TypeScript (Movie, Contact, Circle…)
-    ├── components/
-    │   ├── theme.ts               # Design tokens (COLORS, SPACING, RADIUS, SHADOWS)
-    │   ├── Avatar.tsx             # Avatar initiales avec hash couleur
-    │   ├── MovieCard.tsx          # Carte film (poster + badge note TMDB)
-    │   ├── StarRating.tsx         # Composant notation ⭐ interactif
-    │   ├── RatingModal.tsx        # Modal notation + commentaire
-    │   ├── Toast.tsx              # Toasts non-bloquants (success / info / error)
-    │   └── OnboardingTour.tsx     # Guide de démarrage superposé
-    ├── context/
-    │   ├── AuthContext.tsx        # Auth (Supabase + fallback mock)
-    │   └── AppContext.tsx         # État global via useReducer + sync AsyncStorage/Supabase
-    ├── navigation/
-    │   └── AppNavigator.tsx       # Tabs (5) + Stack (9 écrans modaux/stack)
-    ├── screens/
-    │   ├── HomeScreen.tsx
-    │   ├── SearchScreen.tsx
-    │   ├── FilmDetailsScreen.tsx
-    │   ├── LibraryScreen.tsx
-    │   ├── WatchlistScreen.tsx
-    │   ├── InboxScreen.tsx
-    │   ├── SendRecommendationScreen.tsx
-    │   ├── ProfileScreen.tsx
-    │   ├── SettingsScreen.tsx
-    │   ├── AccountScreen.tsx
-    │   ├── OnboardingScreen.tsx
-    │   ├── HelpScreen.tsx
-    │   ├── FeedbackScreen.tsx
-    │   └── CreateCircleScreen.tsx
-    ├── services/
-    │   └── tmdbService.ts         # TMDB API (search, trending, details, streaming, trailers)
-    ├── lib/
-    │   ├── supabase.ts            # Client Supabase (null si non configuré)
-    │   └── notifications.ts       # Expo Notifications (permissions, push token, listeners)
-    └── data/
-        └── mockData.ts            # Films, contacts et recommandations de démonstration
+|-- App.tsx                        # Providers + notification listener
+|-- .env.example                   # Template des variables d'environnement
+|-- supabase/
+|   `-- schema.sql                 # Schema SQL a deployer sur Supabase
+`-- src/
+    |-- types/
+    |   `-- index.ts               # Interfaces TypeScript (Movie, Contact, Circle...)
+    |-- components/
+    |   |-- theme.ts               # Design tokens (COLORS, SPACING, RADIUS, SHADOWS)
+    |   |-- Avatar.tsx             # Avatar initiales avec hash couleur
+    |   |-- MovieCard.tsx          # Carte film (poster + badge note TMDB)
+    |   |-- StarRating.tsx         # Composant notation interactif
+    |   |-- RatingModal.tsx        # Modal notation + commentaire
+    |   |-- Toast.tsx              # Toasts non-bloquants (success / info / error)
+    |   `-- OnboardingTour.tsx     # Guide de demarrage superpose
+    |-- context/
+    |   |-- AuthContext.tsx        # Auth (Supabase + fallback mock)
+    |   `-- AppContext.tsx         # Etat global via useReducer + sync AsyncStorage/Supabase
+    |-- navigation/
+    |   `-- AppNavigator.tsx       # Tabs (5) + Stack (9 ecrans modaux/stack)
+    |-- screens/
+    |   |-- HomeScreen.tsx
+    |   |-- SearchScreen.tsx
+    |   |-- FilmDetailsScreen.tsx
+    |   |-- LibraryScreen.tsx
+    |   |-- WatchlistScreen.tsx
+    |   |-- InboxScreen.tsx
+    |   |-- SendRecommendationScreen.tsx
+    |   |-- ProfileScreen.tsx
+    |   |-- SettingsScreen.tsx
+    |   |-- AccountScreen.tsx
+    |   |-- OnboardingScreen.tsx
+    |   |-- HelpScreen.tsx
+    |   |-- FeedbackScreen.tsx
+    |   `-- CreateCircleScreen.tsx
+    |-- services/
+    |   `-- tmdbService.ts         # TMDB API (search, trending, details, streaming, trailers)
+    |-- lib/
+    |   |-- supabase.ts            # Client Supabase (null si non configure)
+    |   `-- notifications.ts       # Expo Notifications (permissions, push token, listeners)
+    `-- data/
+        `-- mockData.ts            # Films, contacts et recommandations de demonstration
 ```
 
-### Flux de données
+### Flux de donnees
 
 ```
 Action utilisateur
-       ↓
+       |
   AppContext (useReducer)
-       ↓
-  AsyncStorage ← immédiat, synchrone
-       ↓
-  Supabase upsert ← différé 2 s, si configuré
+       |
+  AsyncStorage  <-- immediat, synchrone
+       |
+  Supabase upsert  <-- differe 2s, si configure
 ```
 
-**Hydratation au démarrage :** Supabase (si session active) → AsyncStorage → données mock.
+**Hydratation au demarrage :** Supabase (si session active) -> AsyncStorage -> donnees mock.
 
 ---
 
 ## Stack technique
 
-| Catégorie | Librairie | Version |
+| Categorie | Librairie | Version |
 |---|---|---|
 | Framework | React Native + Expo | 0.81 / ~54 |
 | Langage | TypeScript strict | 5.9 |
 | Navigation | React Navigation (tabs + stack) | v7 |
-| UI Icons | @expo/vector-icons (Ionicons) | — |
-| Gradients | expo-linear-gradient | — |
-| Persistance locale | @react-native-async-storage | — |
+| UI Icons | @expo/vector-icons (Ionicons) | -- |
+| Gradients | expo-linear-gradient | -- |
+| Persistance locale | @react-native-async-storage | -- |
 | Backend | @supabase/supabase-js | v2 |
-| Push notifications | expo-notifications | — |
-| Device info | expo-device | — |
-| Films | TMDB API v3 | — |
+| Push notifications | expo-notifications | -- |
+| Device info | expo-device | -- |
+| Films | TMDB API v3 | -- |
 
 ---
 
@@ -249,30 +250,31 @@ Action utilisateur
 
 | Variable | Obligatoire | Description |
 |---|---|---|
-| `EXPO_PUBLIC_TMDB_API_KEY` | Non | Clé API TMDB v3 — active les films réels |
+| `EXPO_PUBLIC_TMDB_API_KEY` | Non | Cle API TMDB v3 -- active les films reels |
 | `EXPO_PUBLIC_SUPABASE_URL` | Non | URL du projet Supabase |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Non | Clé publique anonyme Supabase |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Non | Cle publique anonyme Supabase |
 
-Toutes les variables sont préfixées `EXPO_PUBLIC_` et sont donc exposées dans le bundle client — **n'utilisez jamais la clé `service_role` dans le code React Native.**
+Toutes les variables sont prefixees `EXPO_PUBLIC_` et sont exposees dans le bundle client.
+**N'utilisez jamais la cle `service_role` dans le code React Native.**
 
-Copier `.env.example` → `.env` et remplir les valeurs. Le fichier `.env` est ignoré par git.
+Copier `.env.example` -> `.env` et remplir les valeurs. Le fichier `.env` est ignore par git.
 
 ---
 
 ## Backoffice Supabase
 
-Après déploiement du schéma, le tableau de bord Supabase vous donne accès à :
+Apres deploiement du schema, le tableau de bord Supabase vous donne acces a :
 
 | Section | Usage |
 |---|---|
-| **Authentication → Users** | Liste des comptes créés, sessions actives, invitations |
-| **Table Editor → profiles** | Visualiser / éditer les profils utilisateurs |
-| **Table Editor → user_data** | Inspecter les données JSONB de chaque utilisateur |
-| **SQL Editor** | Requêtes ad-hoc, migrations, statistiques |
-| **Authentication → Logs** | Logs d'authentification (échecs, connexions) |
-| **Settings → API** | Clés API, URL du projet |
+| **Authentication -> Users** | Liste des comptes crees, sessions actives, invitations |
+| **Table Editor -> profiles** | Visualiser / editer les profils utilisateurs |
+| **Table Editor -> user_data** | Inspecter les donnees JSONB de chaque utilisateur |
+| **SQL Editor** | Requetes ad-hoc, migrations, statistiques |
+| **Authentication -> Logs** | Logs d'authentification (echecs, connexions) |
+| **Settings -> API** | Cles API, URL du projet |
 
-**Requête utile — statistiques globales :**
+**Requete utile -- statistiques globales :**
 
 ```sql
 select
@@ -286,4 +288,4 @@ from public.user_data;
 
 ## Licence
 
-Projet privé — tous droits réservés.
+Projet prive -- tous droits reserves.
