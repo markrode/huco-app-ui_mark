@@ -1,6 +1,22 @@
 # HuCo — Application de recommandation de films
 
-> *“Qu’est-ce qu’on regarde ce soir ?”* — Partagez des recommandations de films avec vos amis.
+> *"Ça qu'est-ce qu'on regarde ce soir ?"*  
+> Notez les films que vous avez vus, constituez votre bibliothèque et envoyez des recommandations personnalisées à vos amis et cercles.
+
+---
+
+## Sommaire
+
+1. [Fonctionnalités](#fonctionnalités)
+2. [Prérequis](#prérequis)
+3. [Installation](#installation)
+4. [Configuration des APIs](#configuration-des-apis)
+   - [TMDB — Films réels](#tmdb--films-réels-optionnel-mais-recommandé)
+   - [Supabase — Authentification & synchronisation](#supabase--authentification--synchronisation-optionnel)
+5. [Lancer l'application](#lancer-lapplication)
+6. [Architecture](#architecture)
+7. [Stack technique](#stack-technique)
+8. [Variables d'environnement](#variables-denvironnement)
 
 ---
 
@@ -8,240 +24,142 @@
 
 | Écran | Description |
 |---|---|
-| **Accueil** | Films tendance (TMDB), recommandations reçues, pull-to-refresh |
-| **Recherche** | Recherche temps réel + filtres par genre (8 chips), films tendance |
-| **Détail film** | Synopsis, casting, streaming, partage natif, bouton trailer YouTube |
-| **Bibliothèque** | Films vus avec note ⭐ et commentaire |
-| **Watchlist** | Films à voir avec avis de l’expéditeur |
-| **Inbox** | Gérer les recommandations reçues |
-| **Envoi reco** | Flux 3 étapes : noter → destinataires → envoyer |
-| **Profil** | Contacts, cercles, statistiques |
-| **Paramètres** | Notifications, compte, déconnexion |
-| **Compte** | Modifier nom/username, zone de danger |
-| **Connexion** | Login / Inscription (mock → Supabase-ready) |
+| **Accueil** | Hero film en avant-scène, tendances TMDB de la semaine, réseau, pull-to-refresh |
+| **Recherche** | Recherche temps réel + 8 chips de genre (Action, Comédie, Thriller…) |
+| **Détail film** | Synopsis, casting (6 noms), plateformes streaming FR, trailer YouTube, partage natif |
+| **Bibliothèque** | Films vus, triables par date / note / A–Z, modifiables |
+| **Watchlist** | Films à voir avec l'avis de l'expéditeur ; marquer comme vu déclenche la notation |
+| **Inbox** | Gérer les recommandations reçues (Watchlist / Bibliothèque / Ignorer) |
+| **Envoi de reco** | Flux 3 étapes : noter le film → choisir contacts/cercles → envoyer |
+| **Profil** | Contacts, cercles (création & suppression), statistiques (6 indicateurs) |
+| **Paramètres** | Notifications push, Confidentialité, CGU, déconnexion |
+| **Compte** | Modifier nom / username / avatar, suppression de compte |
+| **Connexion** | Login / Inscription + réinitialisation de mot de passe |
+| **Aide** | FAQ accordéon (8 questions), liens vers le feedback |
+| **Feedback** | Signalement de bug / suggestion envoyé par e-mail |
+| **Créer un cercle** | Nommer + sélectionner des contacts → cercle réutilisable |
+
+**Mode hors-ligne :** sans clé API ni Supabase, l'application est 100 % fonctionnelle avec 6 films de démonstration, des contacts mockés et une persistance locale (AsyncStorage).
 
 ---
 
-## Installation rapide
+## Prérequis
+
+| Outil | Version minimale | Installation |
+|---|---|---|
+| Node.js | 18 LTS | [nodejs.org](https://nodejs.org) |
+| npm | 9+ | inclus avec Node |
+| Expo CLI | latest | `npm i -g expo-cli` |
+| Expo Go (mobile) | latest | App Store / Google Play |
+
+Pour le build natif (optionnel) :
+- **iOS** — macOS + Xcode 15+
+- **Android** — Android Studio + SDK 34
+
+---
+
+## Installation
 
 ```bash
-git clone <repo>
+# 1. Cloner le dépôt
+git clone https://github.com/markrode/huco-app-ui_mark.git
 cd huco-app-ui_mark
+
+# 2. Installer les dépendances
 npm install
-npm start          # Expo Go (QR code)
-npm run android    # Émulateur Android
-npm run ios        # Simulateur iOS (macOS)
+
+# 3. Créer le fichier d'environnement
+cp .env.example .env
+# → éditez .env avec vos clés (voir section suivante)
+
+# 4. Démarrer
+npm start          # Expo Dev Tools → scanner le QR avec Expo Go
 ```
-
-### API TMDB (optionnel mais recommandé)
-
-Sans clé, l’app fonctionne avec les données mock intégrées (6 films de démonstration).
-
-1. Créez un compte gratuit sur [themoviedb.org](https://www.themoviedb.org/signup)
-2. Générez une clé API dans *Paramètres → API*
-3. Créez `.env` à la racine :
-
-```
-EXPO_PUBLIC_TMDB_API_KEY=votre_cle_api_tmdb
-```
-
-Fonctionnalités débloquées : films tendance, recherche réelle, providers streaming, trailers YouTube.
 
 ---
 
-## Base de données — Guide Supabase
+## Configuration des APIs
 
-Supabase est gratuit jusqu’à 500 MB de données et 50 000 utilisateurs actifs/mois.
+### TMDB — Films réels *(optionnel mais recommandé)*
 
-### 1. Créer un projet Supabase
+Sans clé TMDB, l'app affiche 6 films de démonstration. Avec une clé :
+- Tendances de la semaine (home)
+- Recherche de films réels
+- Providers streaming pour la France
+- Trailers YouTube
 
-1. Allez sur [supabase.com](https://supabase.com) → *New project*
-2. Notez votre **Project URL** et **anon public key** (Settings → API)
+**Obtenir une clé gratuitement :**
 
-### 2. Installer le SDK
+1. Créer un compte sur [themoviedb.org](https://www.themoviedb.org/signup)
+2. *Paramètres → API → Créer une clé (v3)*
+3. Copier la **Clé API (v3 auth)**
+4. Dans `.env` :
+
+```env
+EXPO_PUBLIC_TMDB_API_KEY=votre_cle_tmdb_ici
+```
+
+---
+
+### Supabase — Authentification & synchronisation *(optionnel)*
+
+Sans Supabase, l'authentification est mockée (n'importe quel e-mail/mot de passe fonctionne) et les données sont sauvegardées localement. Avec Supabase :
+- Authentification réelle par e-mail
+- Réinitialisation de mot de passe par e-mail
+- Synchronisation des données entre appareils
+
+#### Étape 1 — Créer un projet Supabase
+
+1. Aller sur [supabase.com](https://supabase.com) → **New project**
+2. Choisir une région (Europe West recommandé)
+3. Noter le **Project URL** et la **anon public key**  
+   *(Settings → API → Project URL + Project API keys → anon public)*
+
+#### Étape 2 — Déployer le schéma SQL
+
+Ouvrir **SQL Editor → New query**, coller le contenu de [`supabase/schema.sql`](./supabase/schema.sql) et cliquer **Run**.
+
+Ce script crée :
+
+| Table | Rôle |
+|---|---|
+| `public.profiles` | Profil utilisateur (étend `auth.users`) |
+| `public.user_data` | État complet de l'app en JSONB (bibliothèque, watchlist, inbox…) |
+
+Politiques RLS : chaque utilisateur ne peut lire/écrire que ses propres données.
+
+#### Étape 3 — Activer l'authentification par e-mail
+
+**Authentication → Providers → Email** → activer *Enable Email provider*.
+
+> Pour la réinitialisation de mot de passe, vérifiez que l'URL de redirection dans *Authentication → URL Configuration → Redirect URLs* correspond à votre schéma Expo (`exp://` en dev, `huco://` en prod).
+
+#### Étape 4 — Renseigner les variables d'environnement
+
+Dans `.env` :
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+L'application détecte automatiquement la présence de ces variables et bascule en mode Supabase. **Aucune modification du code source n'est nécessaire.**
+
+---
+
+## Lancer l'application
 
 ```bash
-npm install @supabase/supabase-js
+npm start          # Expo Go — scanner le QR code avec l'app Expo Go
+npm run android    # Émulateur Android (Android Studio requis)
+npm run ios        # Simulateur iOS (Xcode requis — macOS uniquement)
+npm run web        # Navigateur (fonctionnalités limitées)
 ```
 
-### 3. Créer le fichier de config
+**Vérification TypeScript :**
 
-`src/lib/supabase.ts` :
-
-```typescript
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-```
-
-Ajoutez dans `.env` :
-
-```
-EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-```
-
-### 4. Schéma SQL
-
-Copiez-collez ce SQL dans l’éditeur SQL de Supabase (*SQL Editor → New query*) :
-
-```sql
--- Profils utilisateurs (étend auth.users de Supabase)
-create table public.profiles (
-  id           uuid references auth.users on delete cascade primary key,
-  name         text not null,
-  username     text unique not null,
-  avatar       text default 'ME',
-  created_at   timestamptz default now()
-);
-alter table public.profiles enable row level security;
-create policy "Lecture publique des profils" on public.profiles for select using (true);
-create policy "Modification de son propre profil" on public.profiles for update using (auth.uid() = id);
-
--- Trigger : créer le profil automatiquement à l’inscription
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, name, username, avatar)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'avatar', 'ME')
-  );
-  return new;
-end;
-$$ language plpgsql security definer;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- Films (cache TMDB)
-create table public.movies (
-  id             integer primary key,
-  title          text not null,
-  original_title text,
-  poster         text,
-  backdrop       text,
-  overview       text,
-  release_date   text,
-  runtime        integer default 0,
-  genres         text[] default '{}',
-  rating         numeric(3,1) default 0,
-  cast           text[] default '{}',
-  created_at     timestamptz default now()
-);
-
--- Bibliothèque
-create table public.library (
-  id         uuid default gen_random_uuid() primary key,
-  user_id    uuid references public.profiles on delete cascade not null,
-  movie_id   integer references public.movies not null,
-  stars      integer not null check (stars between 1 and 5),
-  comment    text default '',
-  added_at   timestamptz default now(),
-  unique(user_id, movie_id)
-);
-alter table public.library enable row level security;
-create policy "Biblio privée" on public.library using (auth.uid() = user_id);
-
--- Watchlist
-create table public.watchlist (
-  id         uuid default gen_random_uuid() primary key,
-  user_id    uuid references public.profiles on delete cascade not null,
-  movie_id   integer references public.movies not null,
-  added_at   timestamptz default now(),
-  unique(user_id, movie_id)
-);
-alter table public.watchlist enable row level security;
-create policy "Watchlist privée" on public.watchlist using (auth.uid() = user_id);
-
--- Contacts (amitiés)
-create table public.friendships (
-  id         uuid default gen_random_uuid() primary key,
-  user_id    uuid references public.profiles on delete cascade not null,
-  friend_id  uuid references public.profiles on delete cascade not null,
-  created_at timestamptz default now(),
-  unique(user_id, friend_id)
-);
-alter table public.friendships enable row level security;
-create policy "Mes contacts" on public.friendships using (auth.uid() = user_id);
-
--- Cercles
-create table public.circles (
-  id         uuid default gen_random_uuid() primary key,
-  owner_id   uuid references public.profiles on delete cascade not null,
-  name       text not null,
-  created_at timestamptz default now()
-);
-alter table public.circles enable row level security;
-create policy "Mes cercles" on public.circles using (auth.uid() = owner_id);
-
-create table public.circle_members (
-  circle_id  uuid references public.circles on delete cascade not null,
-  user_id    uuid references public.profiles on delete cascade not null,
-  primary key (circle_id, user_id)
-);
-alter table public.circle_members enable row level security;
-create policy "Membres de mes cercles" on public.circle_members
-  using (exists (select 1 from public.circles where id = circle_id and owner_id = auth.uid()));
-
--- Recommandations
-create table public.recommendations (
-  id           uuid default gen_random_uuid() primary key,
-  sender_id    uuid references public.profiles on delete cascade not null,
-  recipient_id uuid references public.profiles on delete cascade not null,
-  movie_id     integer references public.movies not null,
-  stars        integer check (stars between 1 and 5),
-  comment      text default '',
-  status       text default 'pending' check (status in ('pending','watchlisted','seen','ignored')),
-  sent_at      timestamptz default now()
-);
-alter table public.recommendations enable row level security;
-create policy "Voir mes recommandations" on public.recommendations
-  using (auth.uid() = sender_id or auth.uid() = recipient_id);
-create policy "Envoyer une recommandation" on public.recommendations
-  for insert with check (auth.uid() = sender_id);
-create policy "Mettre à jour le statut" on public.recommendations
-  for update using (auth.uid() = recipient_id);
-```
-
-### 5. Activer l’authentification par email
-
-Dans Supabase : *Authentication → Providers → Email* → activez "Enable Email provider".
-
-### 6. Brancher AuthContext sur Supabase
-
-Les commentaires `// TODO: swap with Supabase →` dans `src/context/AuthContext.tsx` indiquent exactement où remplacer le mock.
-
-Exemple pour `login` :
-
-```typescript
-import { supabase } from '../lib/supabase';
-
-async function login(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', data.user.id)
-    .single();
-  setUser(profile);
-  await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
-}
-```
-
-### 7. Variables d’environnement complètes
-
-```
-EXPO_PUBLIC_TMDB_API_KEY=votre_cle_tmdb
-EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+```bash
+npx tsc --noEmit   # doit retourner sans erreur
 ```
 
 ---
@@ -249,48 +167,123 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ## Architecture
 
 ```
-src/
-  context/
-    AppContext.tsx     # État global (biblio, watchlist, inbox, contacts)
-    AuthContext.tsx    # Auth (mock → swap Supabase)
-  navigation/
-    AppNavigator.tsx   # Tabs + Stack + Auth flow
-  screens/
-    HomeScreen.tsx     # Tendances + recommandations
-    SearchScreen.tsx   # Recherche + filtres genre
-    FilmDetailsScreen  # Détail + share + trailer
-    LibraryScreen.tsx
-    WatchlistScreen.tsx
-    InboxScreen.tsx
-    SendRecommendationScreen.tsx
-    ProfileScreen.tsx  # Contacts + cercles + stats
-    SettingsScreen.tsx # Paramètres app
-    AccountScreen.tsx  # Gestion compte
-    OnboardingScreen   # Login / Inscription
-  components/
-    theme.ts           # Tokens design (COLORS, SPACING, RADIUS, SHADOWS)
-    MovieCard.tsx
-    StarRating.tsx
-    Avatar.tsx
-    RatingModal.tsx
-  services/
-    tmdbService.ts     # TMDB API (search, trending, genres, details)
-  data/
-    mockData.ts        # Données de démonstration
-  types/
-    index.ts           # Types TypeScript
-  lib/
-    supabase.ts        # ← À créer lors de l’intégration Supabase
+huco-app-ui_mark/
+├── App.tsx                        # Providers + notification listener
+├── .env.example                   # Template des variables d'environnement
+├── supabase/
+│   └── schema.sql                 # Schéma SQL à déployer sur Supabase
+└── src/
+    ├── types/
+    │   └── index.ts               # Interfaces TypeScript (Movie, Contact, Circle…)
+    ├── components/
+    │   ├── theme.ts               # Design tokens (COLORS, SPACING, RADIUS, SHADOWS)
+    │   ├── Avatar.tsx             # Avatar initiales avec hash couleur
+    │   ├── MovieCard.tsx          # Carte film (poster + badge note TMDB)
+    │   ├── StarRating.tsx         # Composant notation ⭐ interactif
+    │   ├── RatingModal.tsx        # Modal notation + commentaire
+    │   ├── Toast.tsx              # Toasts non-bloquants (success / info / error)
+    │   └── OnboardingTour.tsx     # Guide de démarrage superposé
+    ├── context/
+    │   ├── AuthContext.tsx        # Auth (Supabase + fallback mock)
+    │   └── AppContext.tsx         # État global via useReducer + sync AsyncStorage/Supabase
+    ├── navigation/
+    │   └── AppNavigator.tsx       # Tabs (5) + Stack (9 écrans modaux/stack)
+    ├── screens/
+    │   ├── HomeScreen.tsx
+    │   ├── SearchScreen.tsx
+    │   ├── FilmDetailsScreen.tsx
+    │   ├── LibraryScreen.tsx
+    │   ├── WatchlistScreen.tsx
+    │   ├── InboxScreen.tsx
+    │   ├── SendRecommendationScreen.tsx
+    │   ├── ProfileScreen.tsx
+    │   ├── SettingsScreen.tsx
+    │   ├── AccountScreen.tsx
+    │   ├── OnboardingScreen.tsx
+    │   ├── HelpScreen.tsx
+    │   ├── FeedbackScreen.tsx
+    │   └── CreateCircleScreen.tsx
+    ├── services/
+    │   └── tmdbService.ts         # TMDB API (search, trending, details, streaming, trailers)
+    ├── lib/
+    │   ├── supabase.ts            # Client Supabase (null si non configuré)
+    │   └── notifications.ts       # Expo Notifications (permissions, push token, listeners)
+    └── data/
+        └── mockData.ts            # Films, contacts et recommandations de démonstration
 ```
+
+### Flux de données
+
+```
+Action utilisateur
+       ↓
+  AppContext (useReducer)
+       ↓
+  AsyncStorage ← immédiat, synchrone
+       ↓
+  Supabase upsert ← différé 2 s, si configuré
+```
+
+**Hydratation au démarrage :** Supabase (si session active) → AsyncStorage → données mock.
 
 ---
 
 ## Stack technique
 
-- **React Native** 0.81 + **Expo** ~54
-- **TypeScript** strict
-- **React Navigation** v7 (bottom tabs + native stack)
-- **AsyncStorage** (persistance locale)
-- **expo-linear-gradient** (overlays hero)
-- **TMDB API** gratuite (trending, search, genres, providers, trailers)
-- **Supabase** (BDD PostgreSQL + Auth — optionnel)
+| Catégorie | Librairie | Version |
+|---|---|---|
+| Framework | React Native + Expo | 0.81 / ~54 |
+| Langage | TypeScript strict | 5.9 |
+| Navigation | React Navigation (tabs + stack) | v7 |
+| UI Icons | @expo/vector-icons (Ionicons) | — |
+| Gradients | expo-linear-gradient | — |
+| Persistance locale | @react-native-async-storage | — |
+| Backend | @supabase/supabase-js | v2 |
+| Push notifications | expo-notifications | — |
+| Device info | expo-device | — |
+| Films | TMDB API v3 | — |
+
+---
+
+## Variables d'environnement
+
+| Variable | Obligatoire | Description |
+|---|---|---|
+| `EXPO_PUBLIC_TMDB_API_KEY` | Non | Clé API TMDB v3 — active les films réels |
+| `EXPO_PUBLIC_SUPABASE_URL` | Non | URL du projet Supabase |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Non | Clé publique anonyme Supabase |
+
+Toutes les variables sont préfixées `EXPO_PUBLIC_` et sont donc exposées dans le bundle client — **n'utilisez jamais la clé `service_role` dans le code React Native.**
+
+Copier `.env.example` → `.env` et remplir les valeurs. Le fichier `.env` est ignoré par git.
+
+---
+
+## Backoffice Supabase
+
+Après déploiement du schéma, le tableau de bord Supabase vous donne accès à :
+
+| Section | Usage |
+|---|---|
+| **Authentication → Users** | Liste des comptes créés, sessions actives, invitations |
+| **Table Editor → profiles** | Visualiser / éditer les profils utilisateurs |
+| **Table Editor → user_data** | Inspecter les données JSONB de chaque utilisateur |
+| **SQL Editor** | Requêtes ad-hoc, migrations, statistiques |
+| **Authentication → Logs** | Logs d'authentification (échecs, connexions) |
+| **Settings → API** | Clés API, URL du projet |
+
+**Requête utile — statistiques globales :**
+
+```sql
+select
+  count(*)                                      as total_users,
+  avg(jsonb_array_length(library))::numeric(4,1) as avg_library_size,
+  sum(jsonb_array_length(sent_recs))            as total_recs_sent
+from public.user_data;
+```
+
+---
+
+## Licence
+
+Projet privé — tous droits réservés.
