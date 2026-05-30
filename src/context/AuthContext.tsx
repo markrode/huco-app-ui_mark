@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppUser, AppSettings } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { requestNotificationPermission } from '../lib/notifications';
+import { requestNotificationPermission, getExpoPushToken } from '../lib/notifications';
 
 interface AuthContextValue {
   user: AppUser | null;
@@ -100,6 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(appUser);
         await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(appUser));
+        // Register push token so server-sent notifications can reach this device
+        getExpoPushToken().then((token) => {
+          if (token) supabase!.from('profiles').update({ push_token: token }).eq('id', id);
+        });
       }
     } catch {}
     setIsLoading(false);
@@ -174,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw new Error(error.message);
       return;
     }
-    // Mock: silently succeed — no real email can be sent without Supabase
+    // Mock: silently succeed -- no real email can be sent without Supabase
   }
 
   async function logout() {
