@@ -11,11 +11,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import { COLORS, SPACING, RADIUS } from '../components/theme';
+
+const PURPLE = '#8E44AD';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<any>();
   const { user, settings, updateSettings, logout } = useAuth();
+  const { showToast } = useToast();
 
   function handleLogout() {
     Alert.alert(
@@ -93,8 +97,8 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         <SectionLabel label="Application" />
-        <RowItem icon="shield-checkmark-outline" iconColor="#8E44AD" label="Confidentialité" tappable />
-        <RowItem icon="document-text-outline" iconColor={COLORS.info} label="Conditions d'utilisation" tappable />
+        <RowItem icon="shield-checkmark-outline" iconColor={PURPLE} label="Confidentialité" tappable onPress={() => showToast('Politique de confidentialité bientôt disponible.', 'info')} />
+        <RowItem icon="document-text-outline" iconColor={COLORS.info} label="Conditions d'utilisation" tappable onPress={() => showToast("Conditions d'utilisation bientôt disponibles.", 'info')} />
         <RowItem icon="information-circle-outline" iconColor={COLORS.textMuted} label="Version" value="1.0.0" />
 
         <SectionLabel label="" />

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from './theme';
 
-const AVATAR_COLORS = ['#E50914', '#F5A623', '#27AE60', '#2980B9', '#8E44AD', '#E67E22'];
+const AVATAR_COLORS = ['#F5A623', '#27AE60', '#2980B9', '#8E44AD', '#E67E22', '#1ABC9C'];
 
 interface Props {
   initials: string;
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function Avatar({ initials, size = 40 }: Props) {
-  const colorIndex = initials.charCodeAt(0) % AVATAR_COLORS.length;
+  const colorIndex = initials.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
   const bg = AVATAR_COLORS[colorIndex];
 
   return (
