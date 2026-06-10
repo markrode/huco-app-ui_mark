@@ -29,18 +29,11 @@ const Stack = createNativeStackNavigator();
 function TabIcon({
   name,
   focused,
-  badge,
 }: {
   name: keyof typeof Ionicons.glyphMap;
   focused: boolean;
-  badge?: number;
 }) {
-  return (
-    <View>
-      <Ionicons name={name} size={24} color={focused ? COLORS.primary : COLORS.textMuted} />
-      {badge && badge > 0 ? <View style={styles.badge} /> : null}
-    </View>
-  );
+  return <Ionicons name={name} size={24} color={focused ? COLORS.primary : COLORS.textMuted} />;
 }
 
 function MainTabs() {
@@ -61,6 +54,12 @@ function MainTabs() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarBadgeStyle: {
+          backgroundColor: COLORS.primary,
+          color: COLORS.text,
+          fontSize: 10,
+          fontWeight: '700',
+        },
       }}
     >
       <Tab.Screen
@@ -68,8 +67,9 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           title: 'Accueil',
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
           tabBarIcon: ({ focused }) => (
-            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} badge={pendingCount} />
+            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} />
           ),
         }}
       />
@@ -189,14 +189,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-    width: 8,
-    height: 8,
   },
 });
