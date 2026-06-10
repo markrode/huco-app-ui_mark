@@ -66,6 +66,8 @@ export default function HomeScreen() {
   }
 
   const firstName = user?.name?.split(' ')[0] || '';
+  const hour = new Date().getHours();
+  const salutation = hour >= 18 || hour < 5 ? 'Bonsoir' : 'Bonjour';
 
   return (
     <View style={styles.container}>
@@ -86,7 +88,7 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.logo}>HuCo</Text>
             {firstName ? (
-              <Text style={styles.greeting}>Bonsoir, {firstName}</Text>
+              <Text style={styles.greeting}>{salutation}, {firstName}</Text>
             ) : null}
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Inbox')}>
