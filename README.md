@@ -15,6 +15,8 @@
 6. [Architecture](#architecture)
 7. [Stack technique](#stack-technique)
 8. [Variables d'environnement](#variables-denvironnement)
+9. [Mise en production -- pas a pas](#mise-en-production----pas-a-pas)
+10. [Promotion & lancement](#promotion--lancement)
 
 ---
 
@@ -27,9 +29,9 @@
 | **Detail film** | Synopsis, casting (6 noms), plateformes streaming FR, trailer YouTube, partage natif |
 | **Bibliotheque** | Films vus, triables par date / note / A-Z, modifiables |
 | **Watchlist** | Films a voir avec l'avis de l'expediteur ; marquer comme vu declenche la notation |
-| **Inbox** | Gerer les recommandations recues (Watchlist / Bibliotheque / Ignorer) |
-| **Envoi de reco** | Flux 3 etapes : noter le film -> choisir contacts/cercles -> envoyer |
-| **Profil** | Contacts, cercles (creation & suppression), statistiques (6 indicateurs) |
+| **Inbox** | Recommandations recues en temps reel (Supabase Realtime) -- Watchlist / Bibliotheque / Ignorer |
+| **Envoi de reco** | Flux 3 etapes : noter -> choisir contacts/cercles -> envoyer. Livraison reelle aux comptes HuCo lies |
+| **Profil** | Recherche de comptes HuCo par @username, cercles, statistiques (6 indicateurs) |
 | **Parametres** | Notifications push, Confidentialite, CGU, deconnexion |
 | **Compte** | Modifier nom / username / avatar, suppression de compte |
 | **Connexion** | Login / Inscription + reinitialisation de mot de passe |
@@ -105,6 +107,7 @@ Sans Supabase, l'authentification est mockee (n'importe quel e-mail/mot de passe
 - Authentification reelle par e-mail
 - Reinitialisation de mot de passe par e-mail
 - Synchronisation des donnees entre appareils
+- Livraison des recommandations entre comptes + reception en temps reel
 
 #### Etape 1 -- Creer un projet Supabase
 
@@ -123,6 +126,7 @@ Ce script cree :
 |---|---|
 | `public.profiles` | Profil utilisateur (etend `auth.users`) |
 | `public.user_data` | Etat complet de l'app en JSONB (bibliotheque, watchlist, inbox...) |
+| `public.recommendations` | Recommandations entre comptes (expediteur -> destinataire) |
 
 Politiques RLS : chaque utilisateur ne peut lire/ecrire que ses propres donnees.
 
@@ -134,7 +138,12 @@ Politiques RLS : chaque utilisateur ne peut lire/ecrire que ses propres donnees.
 > *Authentication -> URL Configuration -> Redirect URLs* correspond a votre schema Expo
 > (`exp://` en dev, `huco://` en prod).
 
-#### Etape 4 -- Renseigner les variables d'environnement
+#### Etape 4 -- Activer Realtime
+
+**Database -> Replication** -> activer la replication sur la table `recommendations`.
+C'est ce qui permet la reception instantanee des recos dans l'Inbox.
+
+#### Etape 5 -- Renseigner les variables d'environnement
 
 Dans `.env` :
 
@@ -185,8 +194,8 @@ huco-app-ui_mark/
     |   |-- Toast.tsx              # Toasts non-bloquants (success / info / error)
     |   `-- OnboardingTour.tsx     # Guide de demarrage superpose
     |-- context/
-    |   |-- AuthContext.tsx        # Auth (Supabase + fallback mock)
-    |   `-- AppContext.tsx         # Etat global via useReducer + sync AsyncStorage/Supabase
+    |   |-- AuthContext.tsx        # Auth (Supabase + fallback mock) + push token
+    |   `-- AppContext.tsx         # Etat global + sync AsyncStorage/Supabase + Realtime
     |-- navigation/
     |   `-- AppNavigator.tsx       # Tabs (5) + Stack (9 ecrans modaux/stack)
     |-- screens/
@@ -223,6 +232,12 @@ Action utilisateur
   AsyncStorage  <-- immediat, synchrone
        |
   Supabase upsert  <-- differe 2s, si configure
+
+Reco entrante (autre utilisateur)
+       |
+  Supabase Realtime (INSERT sur recommendations)
+       |
+  Inbox + notification locale
 ```
 
 **Hydratation au demarrage :** Supabase (si session active) -> AsyncStorage -> donnees mock.
@@ -239,7 +254,7 @@ Action utilisateur
 | UI Icons | @expo/vector-icons (Ionicons) | -- |
 | Gradients | expo-linear-gradient | -- |
 | Persistance locale | @react-native-async-storage | -- |
-| Backend | @supabase/supabase-js | v2 |
+| Backend + Realtime | @supabase/supabase-js | v2 |
 | Push notifications | expo-notifications | -- |
 | Device info | expo-device | -- |
 | Films | TMDB API v3 | -- |
@@ -270,6 +285,7 @@ Apres deploiement du schema, le tableau de bord Supabase vous donne acces a :
 | **Authentication -> Users** | Liste des comptes crees, sessions actives, invitations |
 | **Table Editor -> profiles** | Visualiser / editer les profils utilisateurs |
 | **Table Editor -> user_data** | Inspecter les donnees JSONB de chaque utilisateur |
+| **Table Editor -> recommendations** | Suivre les recos echangees entre comptes |
 | **SQL Editor** | Requetes ad-hoc, migrations, statistiques |
 | **Authentication -> Logs** | Logs d'authentification (echecs, connexions) |
 | **Settings -> API** | Cles API, URL du projet |
@@ -283,6 +299,95 @@ select
   sum(jsonb_array_length(sent_recs))            as total_recs_sent
 from public.user_data;
 ```
+
+---
+
+## Mise en production -- pas a pas
+
+> Guide technique complet : [PRODUCTION.md](./PRODUCTION.md)
+
+Resume des etapes, dans l'ordre :
+
+### Etape 1 -- Comptes et outils
+
+| Action | Ou | Cout |
+|---|---|---|
+| Installer EAS CLI | `npm install -g eas-cli` puis `eas login` | gratuit |
+| Compte Apple Developer | developer.apple.com | 99 $/an (iOS) |
+| Compte Google Play Console | play.google.com/console | 25 $ une fois (Android) |
+
+### Etape 2 -- Backend de production
+
+1. Creer un **nouveau** projet Supabase dedie a la prod (jamais celui de dev)
+2. Executer `supabase/schema.sql` dans le SQL Editor (idempotent, re-executable)
+3. Activer **Authentication -> Providers -> Email**
+4. Ajouter `huco://` dans **Authentication -> URL Configuration -> Redirect URLs**
+5. **Database -> Replication** : activer Realtime sur la table `recommendations`
+   (necessaire pour la reception instantanee des recos)
+6. Recuperer Project URL + anon key (Settings -> API)
+
+### Etape 3 -- Identifiants de l'app
+
+Dans `app.json`, remplacer `com.yourname.huco` par votre identifiant reel
+(ex. `com.markrode.huco`) dans `ios.bundleIdentifier` ET `android.package`.
+
+### Etape 4 -- Secrets EAS
+
+```bash
+eas secret:create --scope project --name EXPO_PUBLIC_TMDB_API_KEY --value "..."
+eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value "https://xxxx.supabase.co"
+eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "eyJ..."
+eas secret:list   # verifier les 3 secrets
+```
+
+### Etape 5 -- Builds
+
+```bash
+eas build:configure                              # genere eas.json
+eas build --platform ios --profile production    # ~20 min
+eas build --platform android --profile production # ~15 min
+```
+
+> **Android** : sauvegarder le keystore genere (`eas credentials` -> Download keystore).
+> Sans lui, aucune mise a jour de l'app ne sera possible sur Google Play.
+
+### Etape 6 -- Soumission aux stores
+
+```bash
+eas submit --platform ios --latest
+eas submit --platform android --latest
+```
+
+Puis completer les fiches stores :
+- [ ] Screenshots (iPhone 6.9" minimum + Android)
+- [ ] Description FR + mots-cles
+- [ ] **Politique de confidentialite** (URL obligatoire sur les deux stores)
+- [ ] Questionnaire age rating
+- [ ] Soumettre en review (1-3 jours iOS, quelques heures Android)
+
+### Etape 7 -- Apres le lancement
+
+- Surveiller Supabase (Authentication -> Logs, API -> Logs)
+- Mises a jour JS sans re-review : `eas update --branch production`
+- Crashs et notes : App Store Connect Analytics / Google Play Android Vitals
+
+---
+
+## Promotion & lancement
+
+Le plan complet (positionnement, plan social media TikTok/Instagram/Shorts,
+ASO, presse, influence, KPIs et feuille de route 90 jours) est dans
+**[MARKETING.md](./MARKETING.md)**.
+
+En bref :
+
+| Levier | Priorite |
+|---|---|
+| TikTok + Reels + Shorts (4 contenus/semaine) | n.1 |
+| ASO : titre, mots-cles, screenshots annotes | n.2 |
+| Product Hunt + Reddit + Discord cine FR | lancement |
+| Micro-influence cine (5k-50k abonnes) | croissance |
+| Viralite produit : invitations, deep links, recap partageable | V1.1 / V2 |
 
 ---
 
