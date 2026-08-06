@@ -49,8 +49,9 @@ export default function ProfileScreen() {
       const { data } = await supabase
         .from('profiles')
         .select('id, name, username, avatar')
-        .eq('username', `@${q}`)
-        .single();
+        .ilike('username', `@${q}`)
+        .limit(1)
+        .maybeSingle();
       setSearchResult(data || false);
     } catch {
       setSearchResult(false);

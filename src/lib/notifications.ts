@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
@@ -33,7 +34,12 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export async function getExpoPushToken(): Promise<string | null> {
   try {
     if (!Device.isDevice || Platform.OS === 'web') return null;
-    const { data } = await Notifications.getExpoPushTokenAsync();
+    // Standalone (EAS) builds require the EAS projectId; Expo Go infers it.
+    const projectId =
+      Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
+    const { data } = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
     return data;
   } catch {
     return null;

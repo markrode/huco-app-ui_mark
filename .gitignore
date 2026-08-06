@@ -20,3 +20,6 @@ yarn-error.*
 *.tsbuildinfo
 /ios
 /android
+
+# Environment
+.env
