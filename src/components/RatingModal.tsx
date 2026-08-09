@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -24,6 +24,15 @@ interface Props {
 export default function RatingModal({ visible, title, onConfirm, onCancel, initialRating }: Props) {
   const [stars, setStars] = useState(initialRating?.stars ?? 0);
   const [comment, setComment] = useState(initialRating?.comment ?? '');
+
+  // The modal stays mounted across movies (consumers only toggle `visible`),
+  // so state must re-seed on every open or the previous film's rating leaks in.
+  useEffect(() => {
+    if (visible) {
+      setStars(initialRating?.stars ?? 0);
+      setComment(initialRating?.comment ?? '');
+    }
+  }, [visible, initialRating]);
 
   function handleConfirm() {
     if (stars === 0) return;

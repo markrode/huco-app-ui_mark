@@ -91,7 +91,12 @@ export default function HomeScreen() {
               <Text style={styles.greeting}>{salutation}, {firstName}</Text>
             ) : null}
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Inbox')}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Inbox')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Recommandations reçues${pendingRecs.length > 0 ? `, ${pendingRecs.length} en attente` : ''}`}
+          >
             <View style={styles.inboxBtn}>
               <Ionicons name="mail-outline" size={24} color={COLORS.text} />
               {pendingRecs.length > 0 && (
@@ -164,7 +169,7 @@ export default function HomeScreen() {
             onSeeAll={() => navigation.navigate('Inbox')}
           >
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-              {pendingRecs.map((rec) => (
+              {pendingRecs.slice(0, 10).map((rec) => (
                 <MovieCard key={rec.id} movie={rec.movie} onPress={() => goToMovie(rec.movie)} />
               ))}
             </ScrollView>

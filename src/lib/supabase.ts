@@ -7,6 +7,15 @@ const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 
+// Fail closed: a release build without Supabase would silently fall back to
+// the mock auth that accepts ANY email/password. Crash early instead of
+// shipping an unauthenticated app that looks authenticated.
+if (!isSupabaseConfigured && !__DEV__) {
+  throw new Error(
+    'Supabase is not configured in this build. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your EAS environment.'
+  );
+}
+
 export const supabase = isSupabaseConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {

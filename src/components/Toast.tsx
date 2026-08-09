@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS } from './theme';
@@ -28,8 +28,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }, 3200);
   }, []);
 
+  const ctx = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={ctx}>
       {children}
       <View style={styles.container} pointerEvents="none">
         {toasts.map((toast) => (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,11 +31,15 @@ export default function LibraryScreen() {
   const [editingEntry, setEditingEntry] = useState<LibraryEntry | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('date');
 
-  const sorted = [...state.library].sort((a, b) => {
-    if (sortMode === 'rating') return b.userRating.stars - a.userRating.stars;
-    if (sortMode === 'title') return a.movie.title.localeCompare(b.movie.title, 'fr');
-    return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
-  });
+  const sorted = useMemo(
+    () =>
+      [...state.library].sort((a, b) => {
+        if (sortMode === 'rating') return b.userRating.stars - a.userRating.stars;
+        if (sortMode === 'title') return a.movie.title.localeCompare(b.movie.title, 'fr');
+        return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+      }),
+    [state.library, sortMode]
+  );
 
   function handleUpdateRating(rating: UserRating) {
     if (!editingEntry) return;

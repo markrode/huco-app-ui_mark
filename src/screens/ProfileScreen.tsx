@@ -47,7 +47,7 @@ export default function ProfileScreen() {
     setSearchResult(null);
     try {
       const { data } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('id, name, username, avatar')
         .ilike('username', `@${q}`)
         .limit(1)
@@ -63,7 +63,7 @@ export default function ProfileScreen() {
   function handleAddLinkedContact() {
     if (!searchResult) return;
     if (state.contacts.some((c) => c.userId === searchResult.id)) {
-      showToast('Ce contact est deja dans votre liste.', 'info');
+      showToast('Ce contact est déjà dans votre liste.', 'info');
       return;
     }
     dispatch({
@@ -157,7 +157,7 @@ export default function ProfileScreen() {
         <View style={styles.statDivider} />
         <StatPill label="Watchlist" value={state.watchlist.length} />
         <View style={styles.statDivider} />
-        <StatPill label="Recues" value={state.inbox.filter(r => r.status === 'pending').length} />
+        <StatPill label="Reçues" value={state.inbox.filter(r => r.status === 'pending').length} />
         <View style={styles.statDivider} />
         <StatPill label="Note moy." value={avgRating} />
       </View>
@@ -219,7 +219,7 @@ export default function ProfileScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="add-circle-outline" size={18} color={COLORS.primary} />
-            <Text style={styles.addBtnText}>Creer un cercle</Text>
+            <Text style={styles.addBtnText}>Créer un cercle</Text>
           </TouchableOpacity>
           {state.circles.map((circle) => (
             <View key={circle.id} style={styles.circleCard}>
@@ -247,7 +247,7 @@ export default function ProfileScreen() {
             </View>
           ))}
           {state.circles.length === 0 && (
-            <EmptyState icon="people-circle-outline" text="Aucun cercle cree" />
+            <EmptyState icon="people-circle-outline" text="Aucun cercle créé" />
           )}
         </ScrollView>
       )}
@@ -257,10 +257,10 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.statsGrid} showsVerticalScrollIndicator={false}>
           <StatCard icon="library" label="Films vus" value={state.library.length} color={COLORS.success} />
           <StatCard icon="bookmark" label="Watchlist" value={state.watchlist.length} color={COLORS.accent} />
-          <StatCard icon="mail" label="Reco recues" value={state.inbox.length} color={COLORS.primary} />
+          <StatCard icon="mail" label="Reco reçues" value={state.inbox.length} color={COLORS.primary} />
           <StatCard icon="star" label="Note moyenne" value={avgRating} color={COLORS.accent} />
           <StatCard icon="people" label="Contacts" value={state.contacts.length} color={COLORS.info} />
-          <StatCard icon="paper-plane" label="Reco envoyees" value={state.sentRecs.length} color={COLORS.success} />
+          <StatCard icon="paper-plane" label="Reco envoyées" value={state.sentRecs.length} color={COLORS.success} />
         </ScrollView>
       )}
 
@@ -298,7 +298,7 @@ export default function ProfileScreen() {
                 )}
 
                 {searchResult === false && (
-                  <Text style={styles.searchEmpty}>Aucun compte HuCo trouve pour ce username.</Text>
+                  <Text style={styles.searchEmpty}>Aucun compte HuCo trouvé pour ce username.</Text>
                 )}
 
                 {searchResult && (

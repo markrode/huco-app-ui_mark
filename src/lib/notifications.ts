@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
@@ -53,6 +54,13 @@ export async function scheduleNewRecommendationNotification(
   try {
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') return;
+
+    // Respect the in-app settings, not just the OS permission.
+    const rawSettings = await AsyncStorage.getItem('@huco_settings');
+    if (rawSettings) {
+      const s = JSON.parse(rawSettings);
+      if (s.notificationsEnabled === false || s.recommendationAlerts === false) return;
+    }
 
     await Notifications.scheduleNotificationAsync({
       content: {

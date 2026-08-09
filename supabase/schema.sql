@@ -1,6 +1,10 @@
 -- HuCo -- Supabase schema
 -- Paste this entire file into Supabase -> SQL Editor -> New query -> Run.
 -- Safe to re-run (uses IF NOT EXISTS / OR REPLACE throughout).
+--
+-- MIGRATION NOTE: if you deployed a version where recommendations.id was
+-- TEXT, drop that table first (drop table public.recommendations;) --
+-- create table if not exists will NOT alter an existing table.
 
 -- Profiles
 -- Extends auth.users; one row per registered user.
@@ -33,14 +37,16 @@ create table if not exists public.user_data (
 
 -- Cross-user recommendations
 -- Inserted by the sender; read by the recipient via Realtime + hydration.
+-- id is generated server-side (never trust client-chosen keys).
+-- sender_* display fields are stamped server-side by the stamp_sender trigger.
 create table if not exists public.recommendations (
-  id              text          primary key,
+  id              uuid          primary key default gen_random_uuid(),
   sender_id       uuid          references auth.users on delete cascade not null,
   recipient_id    uuid          references auth.users on delete cascade not null,
   movie           jsonb         not null,
   user_rating     jsonb         not null,
-  sender_name     text          not null,
-  sender_username text          not null,
+  sender_name     text          not null default '',
+  sender_username text          not null default '',
   sender_avatar   text          not null default '',
   sent_at         timestamptz   default now()
 );
@@ -60,11 +66,18 @@ create policy "profiles: own row"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- Authenticated users can search all profiles by username (contact lookup).
+-- Contact lookup: expose ONLY safe columns through a view.
+-- RLS is row-level, not column-level -- a broad SELECT policy on profiles
+-- would leak email and push_token to every authenticated user.
 drop policy if exists "profiles: search" on public.profiles;
-create policy "profiles: search"
-  on public.profiles for select
-  using (auth.role() = 'authenticated');
+drop view if exists public.profiles_public;
+
+-- security_definer view: reads bypass profiles RLS but only these 4 columns exist.
+create view public.profiles_public as
+  select id, name, username, avatar from public.profiles;
+
+revoke all    on public.profiles_public from anon;
+grant  select on public.profiles_public to authenticated;
 
 drop policy if exists "user_data: own row" on public.user_data;
 create policy "user_data: own row"
@@ -78,11 +91,49 @@ create policy "recommendations: own rows"
   on public.recommendations for select
   using (auth.uid() = sender_id or auth.uid() = recipient_id);
 
--- Only the authenticated sender can insert.
+-- Only the authenticated sender can insert (and never to themselves).
 drop policy if exists "recommendations: sender insert" on public.recommendations;
 create policy "recommendations: sender insert"
   on public.recommendations for insert
-  with check (auth.uid() = sender_id);
+  with check (auth.uid() = sender_id and recipient_id <> sender_id);
+
+-- Stamp sender identity server-side: display fields can never be spoofed
+-- by a malicious client (they are overwritten from the sender's profile).
+create or replace function public.stamp_sender()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  select p.name, p.username, coalesce(p.avatar, '')
+    into new.sender_name, new.sender_username, new.sender_avatar
+  from public.profiles p where p.id = new.sender_id;
+  if new.sender_name is null then
+    raise exception 'sender has no profile';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists recs_stamp_sender on public.recommendations;
+create trigger recs_stamp_sender
+  before insert on public.recommendations
+  for each row execute function public.stamp_sender();
+
+-- Basic anti-spam: cap outgoing recommendations per sender per hour.
+create or replace function public.check_rec_rate_limit()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from public.recommendations
+      where sender_id = new.sender_id
+        and sent_at > now() - interval '1 hour') >= 100 then
+    raise exception 'rate limit exceeded';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists recs_rate_limit on public.recommendations;
+create trigger recs_rate_limit
+  before insert on public.recommendations
+  for each row execute function public.check_rec_rate_limit();
 
 -- Auto-updated timestamps
 create or replace function public.handle_updated_at()

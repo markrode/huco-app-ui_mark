@@ -153,6 +153,8 @@ export default function SearchScreen() {
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => <MovieRow movie={item} onPress={() => goToMovie(item)} />}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 contentContainerStyle={{ paddingBottom: SPACING.xl }}
               />
             </>
@@ -166,6 +168,8 @@ export default function SearchScreen() {
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => <MovieRow movie={item} onPress={() => goToMovie(item)} />}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 contentContainerStyle={{ paddingBottom: SPACING.xl }}
               />
             </>
@@ -186,6 +190,8 @@ export default function SearchScreen() {
             </View>
           }
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: SPACING.xl }}
         />
       )}

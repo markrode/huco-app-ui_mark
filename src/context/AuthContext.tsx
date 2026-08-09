@@ -141,17 +141,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function register(name: string, username: string, email: string, password: string) {
     if (isSupabaseConfigured && supabase) {
+      const uname = username.startsWith('@') ? username : `@${username}`;
+
+      // Check username availability BEFORE creating the auth user — otherwise
+      // a unique-constraint failure leaves an orphaned auth account with no
+      // profile, permanently locking out that email address.
+      const { data: taken } = await supabase
+        .from('profiles_public')
+        .select('id')
+        .ilike('username', uname)
+        .maybeSingle();
+      if (taken) throw new Error("Ce nom d'utilisateur est déjà pris.");
+
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw new Error(error.message);
       if (data.user) {
+        if (!data.session) {
+          // Email confirmation is enabled: no session yet, so the RLS-guarded
+          // profile insert would fail. The profile is created on first login.
+          throw new Error(
+            'Vérifiez votre boîte mail pour confirmer votre compte, puis connectez-vous.'
+          );
+        }
         const avatar = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
-        await supabase.from('profiles').insert({
+        const { error: profileError } = await supabase.from('profiles').insert({
           id: data.user.id,
           name: name.trim(),
-          username: username.startsWith('@') ? username : `@${username}`,
+          username: uname,
           email: email.trim(),
           avatar,
         });
+        if (profileError) {
+          throw new Error(
+            "Impossible de créer le profil. Réessayez ou choisissez un autre nom d'utilisateur."
+          );
+        }
         await fetchProfile(data.user.id, email);
         if (settings.notificationsEnabled) requestNotificationPermission();
       }
@@ -184,6 +208,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function logout() {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
+      // AppContext purges @huco_state via its SIGNED_OUT listener.
+    } else {
+      // Mock mode has no auth event: purge app state here so the next
+      // account on this device doesn't inherit the previous user's data.
+      await AsyncStorage.removeItem('@huco_state');
     }
     setUser(null);
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
@@ -192,12 +221,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function updateProfile(updates: Partial<AppUser>) {
     if (!user) return;
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('profiles').update({
+      const { error } = await supabase.from('profiles').update({
         name: updates.name,
         username: updates.username,
         avatar: updates.avatar,
         updated_at: new Date().toISOString(),
       }).eq('id', user.id);
+      if (error) {
+        // Never apply locally what the server rejected (e.g. username taken)
+        // or local and server state diverge permanently.
+        throw new Error(
+          error.code === '23505'
+            ? "Ce nom d'utilisateur est déjà pris."
+            : 'Impossible de mettre à jour le profil. Réessayez.'
+        );
+      }
     }
     const updated = { ...user, ...updates };
     setUser(updated);

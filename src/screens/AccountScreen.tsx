@@ -44,13 +44,17 @@ export default function AccountScreen() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
-    await updateProfile({
-      name: name.trim(),
-      username: `@${(username.trim() || name.toLowerCase().replace(/\s+/g, '')).replace('@', '')}`,
-      avatar: newAvatar,
-    });
-    setEditing(false);
-    showToast('Profil mis à jour', 'success');
+    try {
+      await updateProfile({
+        name: name.trim(),
+        username: `@${(username.trim() || name.toLowerCase().replace(/\s+/g, '')).replace('@', '')}`,
+        avatar: newAvatar,
+      });
+      setEditing(false);
+      showToast('Profil mis à jour', 'success');
+    } catch (e: any) {
+      showToast(e.message || 'Impossible de mettre à jour le profil.', 'error');
+    }
   }
 
   function handleCancel() {
@@ -180,13 +184,9 @@ export default function AccountScreen() {
           <TouchableOpacity
             style={styles.dangerRow}
             onPress={() =>
-              Alert.alert(
-                'Supprimer le compte',
-                'Cette action est irréversible. Toutes vos données seront définitivement supprimées.',
-                [
-                  { text: 'Annuler', style: 'cancel' },
-                  { text: 'Supprimer', style: 'destructive', onPress: () => {} },
-                ]
+              showToast(
+                'Suppression de compte bientôt disponible. Contactez feedback@huco.app.',
+                'info'
               )
             }
             activeOpacity={0.7}

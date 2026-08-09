@@ -47,7 +47,7 @@ function mapTmdbMovie(raw: any): Movie {
     id: raw.id,
     title: raw.title || raw.name,
     originalTitle: raw.original_title || raw.original_name,
-    poster: raw.poster_path ? `${TMDB_IMAGE_BASE}/w500${raw.poster_path}` : null,
+    poster: raw.poster_path ? `${TMDB_IMAGE_BASE}/w342${raw.poster_path}` : null,
     backdrop: raw.backdrop_path ? `${TMDB_IMAGE_BASE}/w1280${raw.backdrop_path}` : null,
     overview: raw.overview || '',
     releaseDate: raw.release_date || raw.first_air_date || '',
@@ -59,16 +59,35 @@ function mapTmdbMovie(raw: any): Movie {
   };
 }
 
+// In-memory TTL cache + in-flight de-duplication: Home and Search both
+// request trending, and reopening a film detail refires 4 endpoints —
+// without this every navigation costs fresh network round-trips.
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cache = new Map<string, { promise: Promise<any>; ts: number }>();
+
 async function tmdbFetch(endpoint: string): Promise<any> {
   if (!API_KEY) return null;
-  try {
-    const sep = endpoint.includes('?') ? '&' : '?';
-    const res = await fetch(`${TMDB_BASE_URL}${endpoint}${sep}api_key=${API_KEY}&language=fr-FR`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+
+  const cached = cache.get(endpoint);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.promise;
+
+  const promise = (async () => {
+    try {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const res = await fetch(`${TMDB_BASE_URL}${endpoint}${sep}api_key=${API_KEY}&language=fr-FR`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  })();
+
+  cache.set(endpoint, { promise, ts: Date.now() });
+  promise.then((data) => {
+    // Never cache failures — retry on next call.
+    if (data === null) cache.delete(endpoint);
+  });
+  return promise;
 }
 
 export async function searchMovies(query: string): Promise<Movie[]> {

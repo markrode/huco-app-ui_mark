@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Movie,
@@ -219,7 +219,10 @@ const AppContext = createContext<AppContextValue>({ state: initialState, dispatc
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const storageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
+  const hydratingRef = useRef(false);
+  const syncUserIdRef = useRef<string | null>(null);
   const channelRef = useRef<any>(null);
 
   useEffect(() => {
@@ -230,38 +233,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    async function hydrateFromSupabase(userId: string): Promise<boolean> {
-      if (!supabase) return false;
-      const [{ data }, { data: recRows }] = await Promise.all([
-        supabase.from('user_data').select('*').eq('user_id', userId).single(),
-        supabase.from('recommendations').select('*').eq('recipient_id', userId).order('sent_at', { ascending: false }),
-      ]);
+    function clearPendingTimers() {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      if (storageTimerRef.current) {
+        clearTimeout(storageTimerRef.current);
+        storageTimerRef.current = null;
+      }
+    }
 
-      if (!data) return false;
-
-      const existingInbox: ReceivedRecommendation[] = data.inbox ?? INITIAL_RECOMMENDATIONS;
-      const supabaseInbox = (recRows || []).map(mapSupabaseRec);
-      // Merge: preserve handled statuses already stored in user_data.inbox
-      const merged = supabaseInbox.map((r) => {
-        const existing = existingInbox.find((e) => e.id === r.id);
-        return existing ? { ...r, status: existing.status } : r;
-      });
-      const jsonbOnly = existingInbox.filter((e) => !supabaseInbox.some((r) => r.id === e.id));
-
-      dispatch({
-        type: 'HYDRATE',
-        state: {
-          library: data.library ?? [],
-          watchlist: data.watchlist ?? [],
-          inbox: [...merged, ...jsonbOnly],
-          sentRecs: data.sent_recs ?? [],
-          contacts: data.contacts ?? MOCK_CONTACTS,
-          circles: data.circles ?? MOCK_CIRCLES,
-        },
-      });
-      hydratedRef.current = true;
-
-      // Subscribe to new incoming recommendations via Realtime
+    function subscribeToInbox(userId: string) {
+      if (!supabase) return;
       teardownChannel();
       channelRef.current = supabase
         .channel(`inbox:${userId}`)
@@ -280,8 +264,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         )
         .subscribe();
+    }
 
-      return true;
+    async function hydrateFromSupabase(userId: string): Promise<boolean> {
+      if (!supabase || hydratingRef.current) return hydratingRef.current;
+      hydratingRef.current = true;
+      try {
+        const [{ data }, { data: recRows }] = await Promise.all([
+          supabase.from('user_data').select('*').eq('user_id', userId).maybeSingle(),
+          supabase.from('recommendations').select('*').eq('recipient_id', userId).order('sent_at', { ascending: false }),
+        ]);
+
+        const supabaseInbox = (recRows || []).map(mapSupabaseRec);
+        // Server row may not exist yet for a brand-new account: treat as empty
+        // state (never mock data, which would get upserted into the real row).
+        const existingInbox: ReceivedRecommendation[] = data?.inbox ?? [];
+        const merged = supabaseInbox.map((r) => {
+          const existing = existingInbox.find((e) => e.id === r.id);
+          return existing ? { ...r, status: existing.status } : r;
+        });
+        const jsonbOnly = existingInbox.filter((e) => !supabaseInbox.some((r) => r.id === e.id));
+
+        dispatch({
+          type: 'HYDRATE',
+          state: {
+            library: data?.library ?? [],
+            watchlist: data?.watchlist ?? [],
+            inbox: [...merged, ...jsonbOnly],
+            sentRecs: data?.sent_recs ?? [],
+            contacts: data?.contacts ?? [],
+            circles: data?.circles ?? [],
+          },
+        });
+        hydratedRef.current = true;
+        syncUserIdRef.current = userId;
+
+        // Always subscribe, even before the first user_data row exists —
+        // otherwise a brand-new account receives nothing until app restart.
+        subscribeToInbox(userId);
+        return true;
+      } finally {
+        hydratingRef.current = false;
+      }
     }
 
     async function hydrateFromStorage() {
@@ -311,6 +335,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           hydrateFromSupabase(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           teardownChannel();
+          // Kill any pending debounced write armed with the previous user's
+          // state — it must never fire into the next signed-in account.
+          clearPendingTimers();
+          syncUserIdRef.current = null;
           hydratedRef.current = false;
           AsyncStorage.removeItem(STORAGE_KEY);
           dispatch({ type: 'HYDRATE', state: initialState });
@@ -321,20 +349,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       teardownChannel();
+      clearPendingTimers();
       authSub?.unsubscribe();
     };
   }, []);
 
-  // Persist on every state change (debounced Supabase sync, immediate AsyncStorage)
+  // Persist on state change: AsyncStorage debounced 400ms (full-state
+  // JSON.stringify on every tap causes JS-thread jank), Supabase debounced 2s.
   useEffect(() => {
     if (!hydratedRef.current) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+    if (storageTimerRef.current) clearTimeout(storageTimerRef.current);
+    storageTimerRef.current = setTimeout(() => {
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }, 400);
 
     if (isSupabaseConfigured && supabase) {
+      const armedForUser = syncUserIdRef.current;
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(async () => {
         const { data: { session } } = await supabase!.auth.getSession();
-        if (!session) return;
+        // Abort if the signed-in user changed since this timer was armed.
+        if (!session || (armedForUser && session.user.id !== armedForUser)) return;
         await supabase!.from('user_data').upsert({
           user_id: session.user.id,
           library: state.library,
@@ -349,7 +385,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state]);
 
-  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
+  const value = useMemo(() => ({ state, dispatch }), [state]);
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export const useApp = () => useContext(AppContext);

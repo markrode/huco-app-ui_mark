@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Movie } from '../types';
 import { COLORS, RADIUS, SPACING } from './theme';
@@ -10,7 +11,7 @@ interface Props {
   size?: 'small' | 'medium' | 'large';
 }
 
-export default function MovieCard({ movie, onPress, size = 'medium' }: Props) {
+function MovieCard({ movie, onPress, size = 'medium' }: Props) {
   const width = size === 'small' ? 100 : size === 'large' ? 160 : 130;
   const height = width * 1.5;
 
@@ -18,7 +19,13 @@ export default function MovieCard({ movie, onPress, size = 'medium' }: Props) {
     <TouchableOpacity onPress={onPress} style={[styles.container, { width }]} activeOpacity={0.8}>
       <View style={{ width, height }}>
         {movie.poster ? (
-          <Image source={{ uri: movie.poster }} style={[styles.poster, { width, height }]} />
+          <Image
+            source={{ uri: movie.poster }}
+            style={[styles.poster, { width, height }]}
+            cachePolicy="memory-disk"
+            recyclingKey={String(movie.id)}
+            transition={150}
+          />
         ) : (
           <View style={[styles.placeholder, { width, height }]}>
             <Text style={styles.placeholderText}>🎬</Text>
@@ -42,6 +49,8 @@ export default function MovieCard({ movie, onPress, size = 'medium' }: Props) {
     </TouchableOpacity>
   );
 }
+
+export default React.memo(MovieCard);
 
 const styles = StyleSheet.create({
   container: {},

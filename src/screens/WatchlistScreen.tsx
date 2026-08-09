@@ -78,7 +78,9 @@ export default function WatchlistScreen() {
               <Text style={styles.title} numberOfLines={2}>
                 {item.movie.title}
               </Text>
-              <Text style={styles.year}>{item.movie.releaseDate.split('-')[0]}</Text>
+              {item.movie.releaseDate ? (
+                <Text style={styles.year}>{item.movie.releaseDate.split('-')[0]}</Text>
+              ) : null}
 
               {/* Recommendations for this film */}
               {item.recommendations.length > 0 && (

@@ -4,7 +4,7 @@ import {
   Text,
   Image,
   TouchableOpacity,
-  FlatList,
+  ActivityIndicator,
   StyleSheet,
   ScrollView,
 } from 'react-native';
@@ -36,6 +36,7 @@ export default function SendRecommendationScreen() {
   const [rating, setRating] = useState<UserRating | null>(libraryEntry?.userRating ?? null);
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([]);
   const [ratingModal, setRatingModal] = useState(!libraryEntry);
+  const [sending, setSending] = useState(false);
 
   if (!movie) return null;
 
@@ -63,68 +64,62 @@ export default function SendRecommendationScreen() {
   }
 
   async function handleSend() {
-    if (!movie || !rating) return;
-    if (!libraryEntry) {
-      dispatch({ type: 'ADD_TO_LIBRARY', movie, rating });
-    }
+    if (!movie || !rating || sending) return;
+    setSending(true);
 
-    const recId = Date.now().toString();
-    dispatch({
-      type: 'ADD_SENT_RECOMMENDATION',
-      recommendation: {
-        id: recId,
-        movie,
-        userRating: rating,
-        recipients: selectedRecipients.map((r) => r.data),
-        sentAt: new Date().toISOString(),
-      },
-    });
-
-    // Deliver to linked HuCo accounts via Supabase recommendations table
-    if (isSupabaseConfigured && supabase && user) {
-      const rows: any[] = [];
-      for (const r of selectedRecipients) {
-        if (r.type === 'contact') {
-          const contact = r.data as Contact;
-          if (contact.userId) {
-            rows.push({
-              id: `${recId}-${contact.userId}`,
-              sender_id: user.id,
-              recipient_id: contact.userId,
-              movie,
-              user_rating: rating,
-              sender_name: user.name,
-              sender_username: user.username,
-              sender_avatar: user.avatar || '',
-            });
-          }
-        } else {
-          for (const m of (r.data as Circle).members) {
-            if (m.userId) {
-              rows.push({
-                id: `${recId}-${m.userId}`,
+    try {
+      // Deliver to linked HuCo accounts via Supabase.
+      // Dedupe by recipient (a user picked directly AND via a circle must
+      // receive exactly one row) and never send to self.
+      // id + sender_* fields are generated/stamped server-side.
+      if (isSupabaseConfigured && supabase && user) {
+        const byRecipient = new Map<string, any>();
+        for (const r of selectedRecipients) {
+          const members = r.type === 'contact' ? [r.data as Contact] : (r.data as Circle).members;
+          for (const m of members) {
+            if (m.userId && m.userId !== user.id && !byRecipient.has(m.userId)) {
+              byRecipient.set(m.userId, {
                 sender_id: user.id,
                 recipient_id: m.userId,
                 movie,
                 user_rating: rating,
-                sender_name: user.name,
-                sender_username: user.username,
-                sender_avatar: user.avatar || '',
               });
             }
           }
         }
+        if (byRecipient.size > 0) {
+          const { error } = await supabase
+            .from('recommendations')
+            .insert([...byRecipient.values()]);
+          if (error) {
+            showToast("Échec de l'envoi. Vérifiez votre connexion et réessayez.", 'error');
+            return;
+          }
+        }
       }
-      if (rows.length > 0) {
-        await supabase.from('recommendations').insert(rows);
-      }
-    }
 
-    showToast(
-      `"${movie.title}" envoye a ${selectedRecipients.length} destinataire${selectedRecipients.length > 1 ? 's' : ''}.`,
-      'success'
-    );
-    navigation.goBack();
+      if (!libraryEntry) {
+        dispatch({ type: 'ADD_TO_LIBRARY', movie, rating });
+      }
+      dispatch({
+        type: 'ADD_SENT_RECOMMENDATION',
+        recommendation: {
+          id: Date.now().toString(),
+          movie,
+          userRating: rating,
+          recipients: selectedRecipients.map((r) => r.data),
+          sentAt: new Date().toISOString(),
+        },
+      });
+
+      showToast(
+        `"${movie.title}" envoyé à ${selectedRecipients.length} destinataire${selectedRecipients.length > 1 ? 's' : ''}.`,
+        'success'
+      );
+      navigation.goBack();
+    } finally {
+      setSending(false);
+    }
   }
 
   if (step === 'rate') {
@@ -208,31 +203,36 @@ export default function SendRecommendationScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionLabel}>Contacts ({state.contacts.length})</Text>
-        {state.contacts.map((contact) => (
-          <RecipientRow
-            key={contact.id}
-            title={contact.name}
-            subtitle={contact.username}
-            avatar={contact.avatar}
-            selected={isSelected(contact.id)}
-            linked={!!contact.userId}
-            onPress={() => toggleRecipient({ type: 'contact', data: contact })}
-          />
-        ))}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: SPACING.xl }}
+        >
+          <Text style={styles.sectionLabel}>Contacts ({state.contacts.length})</Text>
+          {state.contacts.map((contact) => (
+            <RecipientRow
+              key={contact.id}
+              title={contact.name}
+              subtitle={contact.username}
+              avatar={contact.avatar}
+              selected={isSelected(contact.id)}
+              linked={!!contact.userId}
+              onPress={() => toggleRecipient({ type: 'contact', data: contact })}
+            />
+          ))}
 
-        <Text style={styles.sectionLabel}>Cercles ({state.circles.length})</Text>
-        {state.circles.map((circle) => (
-          <RecipientRow
-            key={circle.id}
-            title={circle.name}
-            subtitle={`${circle.members.length} membres`}
-            avatar={circle.name.charAt(0)}
-            selected={isSelected(circle.id)}
-            onPress={() => toggleRecipient({ type: 'circle', data: circle })}
-            isCircle
-          />
-        ))}
+          <Text style={styles.sectionLabel}>Cercles ({state.circles.length})</Text>
+          {state.circles.map((circle) => (
+            <RecipientRow
+              key={circle.id}
+              title={circle.name}
+              subtitle={`${circle.members.length} membres`}
+              avatar={circle.name.charAt(0)}
+              selected={isSelected(circle.id)}
+              onPress={() => toggleRecipient({ type: 'circle', data: circle })}
+              isCircle
+            />
+          ))}
+        </ScrollView>
       </View>
     );
   }
@@ -244,7 +244,7 @@ export default function SendRecommendationScreen() {
         <TouchableOpacity onPress={() => setStep('recipients')} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Recapitulatif</Text>
+        <Text style={styles.headerTitle}>Récapitulatif</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -262,7 +262,7 @@ export default function SendRecommendationScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>A envoyer a :</Text>
+        <Text style={styles.label}>À envoyer à :</Text>
         {selectedRecipients.map((r) => (
           <View key={r.type === 'contact' ? r.data.id : r.data.id} style={styles.recipientChip}>
             <Avatar initials={r.type === 'contact' ? r.data.avatar : r.data.name.charAt(0)} size={28} />
@@ -270,14 +270,27 @@ export default function SendRecommendationScreen() {
               {r.type === 'contact' ? r.data.name : r.data.name}
             </Text>
             {r.type === 'circle' && (
-              <Text style={styles.chipMeta}>- cercle</Text>
+              <Text style={styles.chipMeta}>· cercle</Text>
             )}
           </View>
         ))}
 
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-          <Ionicons name="paper-plane" size={20} color={COLORS.text} />
-          <Text style={styles.sendBtnText}>Envoyer la recommandation</Text>
+        <TouchableOpacity
+          style={[styles.sendBtn, sending && styles.disabledBtn]}
+          onPress={handleSend}
+          disabled={sending}
+          accessibilityRole="button"
+          accessibilityLabel="Envoyer la recommandation"
+          accessibilityState={{ disabled: sending }}
+        >
+          {sending ? (
+            <ActivityIndicator color={COLORS.text} size="small" />
+          ) : (
+            <Ionicons name="paper-plane" size={20} color={COLORS.text} />
+          )}
+          <Text style={styles.sendBtnText}>
+            {sending ? 'Envoi en cours…' : 'Envoyer la recommandation'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
